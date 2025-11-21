@@ -50,6 +50,20 @@ Complete documentation for NDFirestORM - An Eloquent-style ORM for Firebase Fire
    - UpdateModelData
    - Complete examples
 
+7. [**Real-time, Transactions & Batch**](./07-realtime-transactions.md)
+   - Real-time subscriptions
+   - Atomic transactions
+   - Batch operations
+   - Custom document IDs
+   - Complete examples
+
+8. [**Best Practices**](./08-best-practices.md)
+   - General principles
+   - CRUD patterns
+   - Transaction best practices
+   - Performance optimization
+   - Code organization
+
 ## 🚀 Quick Start
 
 ```bash

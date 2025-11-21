@@ -30,11 +30,18 @@ export type {
   CreateModelData,
   UpdateModelData,
   ModelConstructor,
+  TransactionCallback,
+  BatchCallback,
 } from './core/Model';
+
+export { TransactionContext, BatchContext } from './core/Model';
 
 export type { WhereOperator, OrderDirection } from './types';
 
 export type { PaginationMeta, PaginatedResult } from './core/QueryBuilder';
+
+// Re-export Firestore types for convenience
+export type { Unsubscribe } from 'firebase/firestore';
 
 export type { OrmConfig } from './core/ModelFactory';
 

@@ -4,10 +4,52 @@
 
 ## [0.1.4] - 2025-11-21
 
+### Added
+
+- **Real-time Subscriptions**: New `Model.listen()` method for real-time document updates
+  - Returns `Unsubscribe` function for cleanup
+  - **JSON First**: Callback receives plain JSON data (not model instance)
+  - Built-in error handling
+  - Example: `User.listen('id', (user) => console.log(user.name))`
+
+- **Transactions**: New `Model.transaction()` method for atomic operations
+  - Run multiple reads and writes atomically
+  - Automatic retry on conflicts
+  - Support for return values
+  - Example: `await User.transaction(async (firestore, transaction) => { ... })`
+
+- **Batch Operations**: New `Model.batch()` method for bulk writes
+  - Up to 500 operations per batch
+  - More efficient than individual writes
+  - Supports create, update, and delete
+  - Example: `await User.batch(async (firestore, batch) => { ... })`
+
+- **Custom Document IDs**: Support for custom IDs when creating documents
+  - Pass custom ID as second parameter: `User.create(data, 'custom-id')`
+  - Include ID in data object: `User.create({ id: 'custom-id', ...data })`
+  - Set ID before saving: `user.set('id', 'custom-id'); await user.save()`
+  - Perfect for syncing with Firebase Auth UIDs
+
+### Changed
+
+- **`create()` method**: Now accepts optional second parameter for custom ID
+- **`performCreate()` method**: Now uses `setDoc()` when ID is provided, `addDoc()` otherwise
+
+### Documentation
+
+- Added comprehensive guide: `docs/07-realtime-transactions.md`
+- Added examples: `examples/realtime-transactions.ts`
+- Includes React and Vue examples for real-time subscriptions
+- Transaction and batch operation patterns
+- Custom ID usage examples
+
 ### Fixed
 
 - **Type Visibility Issue**: Fixed TypeScript error when extending `Model` class
   - Changed `collectionName` from `protected static` to `static` (public)
+- **Build Warning**: Fixed ES module warning by adding `"type": "module"` to package.json
+  - Renamed config files to `.mjs` extension
+  - Converted jest.config to ES module syntax
   - Changed `getCollectionRef()` from `protected static` to `static` (public)
   - This resolves the error: "The 'this' context of type 'typeof User' is not assignable to method's 'this' of type 'ModelConstructor<User>'"
   - No breaking changes - only makes the API more accessible

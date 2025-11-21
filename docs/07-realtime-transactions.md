@@ -1,0 +1,507 @@
+# Real-time Subscriptions, Transactions & Batch Operations
+
+## 🎯 Philosophy
+
+**Zero Firestore Code**: This ORM completely abstracts Firestore. You work only with models - no `doc()`, `collection()`, `getDoc()`, or any Firestore functions in your application code.
+
+## 🔴 Real-time Subscriptions (Listen)
+
+Subscribe to real-time updates for a document.
+
+### Basic Usage
+
+```typescript
+import { User, type UserData, type Unsubscribe } from 'ndfirestorm';
+
+// Listen to a user document (receives JSON)
+const unsubscribe: Unsubscribe = User.listen(
+  'user123',
+  (user: UserData | null) => {
+    if (user) {
+      console.log('User updated:', user);
+      console.log('Name:', user.name);
+    } else {
+      console.log('User deleted or does not exist');
+    }
+  }
+);
+
+// Stop listening when done
+unsubscribe();
+```
+
+### React Hook Example
+
+```typescript
+import { useState, useEffect } from 'react';
+import { User, type UserData, type Unsubscribe } from 'ndfirestorm';
+
+function useUser(userId: string) {
+  const [user, setUser] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+
+    const unsubscribe = User.listen(userId, (userData) => {
+      setUser(userData); // Already JSON!
+      setLoading(false);
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, [userId]);
+
+  return { user, loading };
+}
+
+// Usage in component
+function UserProfile({ userId }: { userId: string }) {
+  const { user, loading } = useUser(userId);
+
+  if (loading) return <div>Loading...</div>;
+  if (!user) return <div>User not found</div>;
+
+  return (
+    <div>
+      <h1>{user.name}</h1>
+      <p>{user.email}</p>
+    </div>
+  );
+}
+```
+
+## 🔄 Transactions
+
+Run atomic operations across multiple documents and models. **No Firestore code needed!**
+
+### Basic Transaction
+
+```typescript
+import { User } from 'ndfirestorm';
+
+// Transfer credits between users
+await User.transaction(async (ctx) => {
+  // Load both users
+  const user1 = await User.load('user1');
+  const user2 = await User.load('user2');
+
+  if (!user1 || !user2) {
+    throw new Error('Users not found');
+  }
+
+  // Check if user1 has enough credits
+  if (user1.get('credits') < 100) {
+    throw new Error('Insufficient credits');
+  }
+
+  // Update both users atomically
+  await ctx.update(user1, { credits: user1.get('credits') - 100 });
+  await ctx.update(user2, { credits: user2.get('credits') + 100 });
+});
+
+console.log('Transaction completed successfully');
+```
+
+### Transaction Across Multiple Models
+
+Transactions work across different models. If any operation fails, all changes are rolled back:
+
+```typescript
+import { User, Gym } from 'ndfirestorm';
+
+// Update user and gym atomically
+await User.transaction(async (ctx) => {
+  // Load both models
+  const user = await User.load('user123');
+  const gym = await Gym.load('gym456');
+
+  if (!user || !gym) {
+    throw new Error('User or Gym not found');
+  }
+
+  // Check if user can join gym
+  if (gym.get('memberCount') >= gym.get('maxMembers')) {
+    throw new Error('Gym is full');
+  }
+
+  if (user.get('credits') < gym.get('membershipFee')) {
+    throw new Error('Insufficient credits');
+  }
+
+  // Update both atomically - if one fails, both rollback
+  await ctx.update(user, {
+    credits: user.get('credits') - gym.get('membershipFee'),
+    gymId: gym.id,
+    memberSince: new Date(),
+  });
+
+  await ctx.update(gym, {
+    memberCount: gym.get('memberCount') + 1,
+    memberIds: [...(gym.get('memberIds') || []), user.id],
+  });
+});
+
+console.log('User joined gym successfully');
+```
+
+**Important**:
+
+- You can call the transaction from any Model class (User, Gym, Order, etc.)
+- The transaction works across all collections
+- **No Firestore code needed** - just work with your models!
+
+```typescript
+// All of these are equivalent:
+await User.transaction(async (ctx) => {
+  /* ... */
+});
+await Gym.transaction(async (ctx) => {
+  /* ... */
+});
+await Order.transaction(async (ctx) => {
+  /* ... */
+});
+```
+
+### Transaction with Create and Delete
+
+```typescript
+await User.transaction(async (ctx) => {
+  // Create a new user
+  const newUser = await ctx.create(User, {
+    name: 'New User',
+    email: 'new@example.com',
+    credits: 0,
+  });
+
+  // Load existing user
+  const oldUser = await User.load('old-user-id');
+
+  if (oldUser) {
+    // Transfer data
+    await ctx.update(newUser, { credits: oldUser.get('credits') });
+
+    // Delete old user
+    await ctx.delete(oldUser);
+  }
+});
+```
+
+### Transaction with Return Value
+
+```typescript
+interface TransferResult {
+  success: boolean;
+  fromBalance: number;
+  toBalance: number;
+}
+
+const result = await User.transaction<TransferResult>(async (ctx) => {
+  const fromUser = await User.load('user1');
+  const toUser = await User.load('user2');
+
+  if (!fromUser || !toUser) {
+    throw new Error('Users not found');
+  }
+
+  const amount = 50;
+
+  if (fromUser.get('credits') < amount) {
+    throw new Error('Insufficient funds');
+  }
+
+  const newFromBalance = fromUser.get('credits') - amount;
+  const newToBalance = toUser.get('credits') + amount;
+
+  await ctx.update(fromUser, { credits: newFromBalance });
+  await ctx.update(toUser, { credits: newToBalance });
+
+  return {
+    success: true,
+    fromBalance: newFromBalance,
+    toBalance: newToBalance,
+  };
+});
+
+console.log('Transfer result:', result);
+```
+
+## 📦 Batch Operations
+
+Perform bulk writes efficiently (up to 500 operations). **No Firestore code needed!**
+
+### Basic Batch
+
+```typescript
+import { User } from 'ndfirestorm';
+
+// Update multiple users at once
+await User.batch(async (ctx) => {
+  const user1 = await User.load('user1');
+  const user2 = await User.load('user2');
+  const user3 = await User.load('user3');
+
+  if (user1) ctx.update(user1, { status: 'active' });
+  if (user2) ctx.update(user2, { status: 'active' });
+  if (user3) ctx.update(user3, { status: 'active' });
+});
+
+console.log('Batch update completed');
+```
+
+### Batch Create Multiple Documents
+
+```typescript
+// Create multiple users in a batch
+await User.batch(async (ctx) => {
+  ctx.create(User, { name: 'John', email: 'john@example.com', credits: 100 });
+  ctx.create(User, { name: 'Jane', email: 'jane@example.com', credits: 100 });
+  ctx.create(User, { name: 'Bob', email: 'bob@example.com', credits: 100 });
+});
+```
+
+### Batch Delete Multiple Documents
+
+```typescript
+// Delete inactive users
+const inactiveUsers = await User.where('status', '==', 'inactive').get();
+
+await User.batch(async (ctx) => {
+  for (const userData of inactiveUsers) {
+    const user = await User.load(userData.id);
+    if (user) {
+      ctx.delete(user);
+    }
+  }
+});
+
+console.log(`Deleted ${inactiveUsers.length} inactive users`);
+```
+
+### Mixed Batch Operations
+
+```typescript
+// Create, update, and delete in one batch
+await User.batch(async (ctx) => {
+  // Create new user
+  ctx.create(User, {
+    name: 'New User',
+    email: 'new@example.com',
+    credits: 100,
+    status: 'active',
+  });
+
+  // Update existing user
+  const user = await User.load('user123');
+  if (user) {
+    ctx.update(user, { lastLogin: new Date() });
+  }
+
+  // Delete old user
+  const oldUser = await User.load('oldUser');
+  if (oldUser) {
+    ctx.delete(oldUser);
+  }
+});
+```
+
+## 🆔 Custom IDs
+
+Create documents with custom IDs instead of auto-generated ones.
+
+### Create with Custom ID
+
+```typescript
+// Method 1: Pass custom ID to create()
+const user = await User.create(
+  {
+    name: 'John Doe',
+    email: 'john@example.com',
+  },
+  'my-custom-id' // Custom ID
+);
+
+console.log(user.id); // 'my-custom-id'
+```
+
+### Sync with Firebase Auth
+
+```typescript
+import { getAuth } from 'firebase/auth';
+
+// Create user document with same ID as Firebase Auth
+const auth = getAuth();
+const firebaseUser = auth.currentUser;
+
+if (firebaseUser) {
+  const user = await User.create(
+    {
+      name: firebaseUser.displayName || 'Anonymous',
+      email: firebaseUser.email || '',
+      photoURL: firebaseUser.photoURL || '',
+    },
+    firebaseUser.uid // Use Firebase Auth UID
+  );
+
+  console.log('User created with Auth UID:', user.id);
+}
+```
+
+### Custom ID in Transaction
+
+```typescript
+await User.transaction(async (ctx) => {
+  // Create with custom ID in transaction
+  const user = await ctx.create(
+    User,
+    { name: 'John', email: 'john@example.com' },
+    'custom-id-123'
+  );
+
+  console.log('Created user with ID:', user.id);
+});
+```
+
+## 🎯 Complete Examples
+
+### Order Processing with Transaction
+
+```typescript
+async function processOrder(orderId: string, userId: string) {
+  return Order.transaction(async (ctx) => {
+    // Load order and user
+    const order = await Order.load(orderId);
+    const user = await User.load(userId);
+
+    if (!order || !user) {
+      throw new Error('Order or user not found');
+    }
+
+    // Check if user has enough credits
+    if (user.get('credits') < order.get('total')) {
+      throw new Error('Insufficient credits');
+    }
+
+    // Update order status
+    await ctx.update(order, {
+      status: 'processing',
+      processedAt: new Date(),
+    });
+
+    // Deduct credits from user
+    await ctx.update(user, {
+      credits: user.get('credits') - order.get('total'),
+    });
+
+    // Create transaction record
+    await ctx.create(Transaction, {
+      type: 'order',
+      orderId: order.id,
+      userId: user.id,
+      amount: order.get('total'),
+      timestamp: new Date(),
+    });
+
+    return {
+      success: true,
+      remainingCredits: user.get('credits') - order.get('total'),
+    };
+  });
+}
+```
+
+### Bulk User Import with Batch
+
+```typescript
+async function importUsers(users: Array<{ name: string; email: string }>) {
+  const BATCH_SIZE = 500; // Firestore limit
+
+  // Split into batches of 500
+  for (let i = 0; i < users.length; i += BATCH_SIZE) {
+    const batchUsers = users.slice(i, i + BATCH_SIZE);
+
+    await User.batch(async (ctx) => {
+      batchUsers.forEach((userData) => {
+        ctx.create(User, {
+          ...userData,
+          status: 'active',
+          credits: 0,
+        });
+      });
+    });
+  }
+
+  console.log(`Imported ${users.length} users`);
+}
+
+// Usage
+const users = [
+  { name: 'User 1', email: 'user1@example.com' },
+  { name: 'User 2', email: 'user2@example.com' },
+  // ... up to thousands of users
+];
+
+await importUsers(users);
+```
+
+## 💡 Best Practices
+
+### Transactions
+
+1. **Keep them short** - Transactions can fail and retry
+2. **Load models first** - Get all data before making changes
+3. **Don't modify external state** - Transaction can run multiple times
+4. **Use for atomic operations** - When consistency is critical
+5. **Handle errors** - Always wrap in try/catch
+
+```typescript
+try {
+  await User.transaction(async (ctx) => {
+    // Your transaction logic
+  });
+} catch (error) {
+  console.error('Transaction failed:', error);
+  // Handle rollback scenario
+}
+```
+
+### Batch Operations
+
+1. **Limit to 500 operations** - Firestore's hard limit
+2. **Use for bulk operations** - More efficient than individual writes
+3. **Split large batches** - Process in chunks if > 500 operations
+4. **No reads in batch** - Load models before the batch
+
+### Real-time Subscriptions
+
+1. **Always unsubscribe** - Prevent memory leaks
+2. **Use in components** - Perfect for UI that needs live updates
+3. **Handle null** - Document might not exist or be deleted
+4. **Cleanup on unmount** - In React/Vue components
+
+### Custom IDs
+
+1. **Use for Auth sync** - Keep user doc ID same as Auth UID
+2. **Use for predictable IDs** - When you need to reference before creation
+3. **Validate ID format** - Ensure IDs meet Firestore requirements
+4. **Avoid conflicts** - Make sure custom IDs are unique
+
+## 🚫 What You DON'T Need
+
+With this ORM, you never need to use:
+
+- ❌ `doc(firestore, 'collection', 'id')`
+- ❌ `collection(firestore, 'collection')`
+- ❌ `getDoc()`, `setDoc()`, `updateDoc()`, `deleteDoc()`
+- ❌ `getDocs()`, `query()`, `where()`
+- ❌ `onSnapshot()` directly
+- ❌ `runTransaction()` directly
+- ❌ `writeBatch()` directly
+
+**Everything is handled by the ORM!**
+
+## 🔗 Next
+
+- [Type Utilities](./06-type-utilities.md) - Type helpers
+- [Best Practices](./08-best-practices.md) - Tips and patterns

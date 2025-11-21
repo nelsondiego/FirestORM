@@ -2,10 +2,16 @@ import {
   collection,
   doc,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   serverTimestamp,
+  onSnapshot,
+  runTransaction,
+  writeBatch,
   CollectionReference,
+  Unsubscribe,
+  DocumentSnapshot,
 } from 'firebase/firestore';
 import { ModelFactory } from './ModelFactory';
 import { ModelAttributes } from '../types';
@@ -63,7 +69,155 @@ export type ModelConstructor<M extends Model> = {
   query(): any;
   find(id: string): Promise<any>;
   load(id: string): Promise<any>;
+  listen(
+    id: string,
+    callback: (data: ModelData<M> | null) => void
+  ): Unsubscribe;
 };
+
+/**
+ * Transaction context for model operations
+ */
+export class TransactionContext {
+  private operations: Array<{
+    type: 'create' | 'update' | 'delete';
+    model: any;
+    data?: any;
+    customId?: string;
+  }> = [];
+
+  /**
+   * Create a new document in the transaction
+   */
+  async create<M extends Model>(
+    ModelClass: ModelConstructor<M>,
+    data: Partial<any>,
+    customId?: string
+  ): Promise<InstanceType<ModelConstructor<M>>> {
+    const instance = new ModelClass(data as any);
+    if (customId) {
+      (instance as any).attributes.id = customId;
+    }
+
+    this.operations.push({
+      type: 'create',
+      model: instance,
+      data,
+      customId,
+    });
+
+    return instance as InstanceType<ModelConstructor<M>>;
+  }
+
+  /**
+   * Update a document in the transaction
+   */
+  async update<M extends Model>(model: M, data: Partial<any>): Promise<M> {
+    model.fill(data);
+
+    this.operations.push({
+      type: 'update',
+      model,
+      data,
+    });
+
+    return model;
+  }
+
+  /**
+   * Delete a document in the transaction
+   */
+  async delete<M extends Model>(model: M): Promise<void> {
+    this.operations.push({
+      type: 'delete',
+      model,
+    });
+  }
+
+  /**
+   * Get all operations
+   */
+  getOperations() {
+    return this.operations;
+  }
+}
+
+/**
+ * Transaction callback type
+ */
+export type TransactionCallback<T> = (ctx: TransactionContext) => Promise<T>;
+
+/**
+ * Batch context for model operations
+ */
+export class BatchContext {
+  private operations: Array<{
+    type: 'create' | 'update' | 'delete';
+    model: any;
+    data?: any;
+    customId?: string;
+  }> = [];
+
+  /**
+   * Create a new document in the batch
+   */
+  create<M extends Model>(
+    ModelClass: ModelConstructor<M>,
+    data: Partial<any>,
+    customId?: string
+  ): InstanceType<ModelConstructor<M>> {
+    const instance = new ModelClass(data as any);
+    if (customId) {
+      (instance as any).attributes.id = customId;
+    }
+
+    this.operations.push({
+      type: 'create',
+      model: instance,
+      data,
+      customId,
+    });
+
+    return instance as InstanceType<ModelConstructor<M>>;
+  }
+
+  /**
+   * Update a document in the batch
+   */
+  update<M extends Model>(model: M, data: Partial<any>): M {
+    model.fill(data);
+
+    this.operations.push({
+      type: 'update',
+      model,
+      data,
+    });
+
+    return model;
+  }
+
+  /**
+   * Delete a document in the batch
+   */
+  delete<M extends Model>(model: M): void {
+    this.operations.push({
+      type: 'delete',
+      model,
+    });
+  }
+
+  /**
+   * Get all operations
+   */
+  getOperations() {
+    return this.operations;
+  }
+}
+
+/**
+ * Batch callback type
+ */
+export type BatchCallback = (ctx: BatchContext) => void | Promise<void>;
 
 // ============================================
 // MODEL BASE CLASS
@@ -176,12 +330,18 @@ export abstract class Model<T extends ModelAttributes = any> {
 
   /**
    * Create new document and return Model instance
+   * @param data - Data for the new document
+   * @param customId - Optional custom ID for the document
    */
   static async create<M extends Model>(
     this: ModelConstructor<M>,
-    data: Partial<any>
+    data: Partial<any>,
+    customId?: string
   ): Promise<InstanceType<ModelConstructor<M>>> {
     const instance = new this(data as any);
+    if (customId) {
+      (instance as any).attributes.id = customId;
+    }
     await instance.save();
     return instance as InstanceType<ModelConstructor<M>>;
   }
@@ -199,6 +359,176 @@ export abstract class Model<T extends ModelAttributes = any> {
       (model as any).exists = true;
       await model.delete();
     }
+  }
+
+  /**
+   * Listen to real-time updates for a document (returns JSON)
+   * @param id - Document ID to listen to
+   * @param callback - Callback function that receives the document data as JSON or null
+   * @returns Unsubscribe function
+   */
+  static listen<M extends Model>(
+    this: ModelConstructor<M>,
+    id: string,
+    callback: (
+      data: ModelData<InstanceType<ModelConstructor<M>>> | null
+    ) => void
+  ): Unsubscribe {
+    const collectionRef = this.getCollectionRef();
+    const docRef = doc(collectionRef, id);
+
+    return onSnapshot(
+      docRef,
+      (snapshot: DocumentSnapshot) => {
+        if (snapshot.exists()) {
+          const data = { id: snapshot.id, ...snapshot.data() };
+          callback(data as ModelData<InstanceType<ModelConstructor<M>>>);
+        } else {
+          callback(null);
+        }
+      },
+      (error) => {
+        console.error('Error listening to document:', error);
+        callback(null);
+      }
+    );
+  }
+
+  /**
+   * Run a Firestore transaction with model operations
+   * @param callback - Transaction callback that receives a context for model operations
+   * @returns Promise with the transaction result
+   * @example
+   * await User.transaction(async (ctx) => {
+   *   const user = await User.load('user1');
+   *   const gym = await Gym.load('gym1');
+   *
+   *   if (user && gym) {
+   *     await ctx.update(user, { gymId: gym.id });
+   *     await ctx.update(gym, { memberCount: gym.get('memberCount') + 1 });
+   *   }
+   * });
+   */
+  static async transaction<T>(callback: TransactionCallback<T>): Promise<T> {
+    const firestore = ModelFactory.getFirestore();
+    const ctx = new TransactionContext();
+
+    // Execute user callback to collect operations
+    const result = await callback(ctx);
+
+    // Execute all operations in a Firestore transaction
+    await runTransaction(firestore, async (transaction) => {
+      const operations = ctx.getOperations();
+
+      for (const op of operations) {
+        const model = op.model;
+        const collectionRef = (model.constructor as any).getCollectionRef();
+
+        if (op.type === 'create') {
+          const dataToSave = model.prepareDataForSave();
+
+          if (model.attributes.id) {
+            const docRef = doc(collectionRef, model.attributes.id);
+            transaction.set(docRef, dataToSave);
+          } else {
+            // Generate ID for transaction
+            const docRef = doc(collectionRef);
+            model.attributes.id = docRef.id;
+            transaction.set(docRef, dataToSave);
+          }
+
+          model.exists = true;
+          model.original = { ...model.attributes };
+        } else if (op.type === 'update') {
+          if (!model.attributes.id) {
+            throw new Error('Cannot update model without ID');
+          }
+
+          const docRef = doc(collectionRef, model.attributes.id);
+          const dataToUpdate = model.prepareDataForSave(true);
+          transaction.update(docRef, dataToUpdate);
+          model.original = { ...model.attributes };
+        } else if (op.type === 'delete') {
+          if (!model.attributes.id) {
+            throw new Error('Cannot delete model without ID');
+          }
+
+          const docRef = doc(collectionRef, model.attributes.id);
+          transaction.delete(docRef);
+          model.exists = false;
+        }
+      }
+    });
+
+    return result;
+  }
+
+  /**
+   * Run a Firestore batch operation with model operations
+   * @param callback - Batch callback that receives a context for model operations
+   * @returns Promise that resolves when batch is committed
+   * @example
+   * await User.batch(async (ctx) => {
+   *   ctx.create(User, { name: 'John', email: 'john@example.com' });
+   *   ctx.create(User, { name: 'Jane', email: 'jane@example.com' });
+   *
+   *   const user = await User.load('user1');
+   *   if (user) {
+   *     ctx.update(user, { status: 'active' });
+   *   }
+   * });
+   */
+  static async batch(callback: BatchCallback): Promise<void> {
+    const firestore = ModelFactory.getFirestore();
+    const batch = writeBatch(firestore);
+    const ctx = new BatchContext();
+
+    // Execute user callback to collect operations
+    await callback(ctx);
+
+    // Execute all operations in a Firestore batch
+    const operations = ctx.getOperations();
+
+    for (const op of operations) {
+      const model = op.model;
+      const collectionRef = (model.constructor as any).getCollectionRef();
+
+      if (op.type === 'create') {
+        const dataToSave = model.prepareDataForSave();
+
+        if (model.attributes.id) {
+          const docRef = doc(collectionRef, model.attributes.id);
+          batch.set(docRef, dataToSave);
+        } else {
+          // Generate ID for batch
+          const docRef = doc(collectionRef);
+          model.attributes.id = docRef.id;
+          batch.set(docRef, dataToSave);
+        }
+
+        model.exists = true;
+        model.original = { ...model.attributes };
+      } else if (op.type === 'update') {
+        if (!model.attributes.id) {
+          throw new Error('Cannot update model without ID');
+        }
+
+        const docRef = doc(collectionRef, model.attributes.id);
+        const dataToUpdate = model.prepareDataForSave(true);
+        batch.update(docRef, dataToUpdate);
+        model.original = { ...model.attributes };
+      } else if (op.type === 'delete') {
+        if (!model.attributes.id) {
+          throw new Error('Cannot delete model without ID');
+        }
+
+        const docRef = doc(collectionRef, model.attributes.id);
+        batch.delete(docRef);
+        model.exists = false;
+      }
+    }
+
+    return batch.commit();
   }
 
   // ============================================
@@ -313,10 +643,18 @@ export abstract class Model<T extends ModelAttributes = any> {
     const collectionRef = (this.constructor as any).getCollectionRef();
     const dataToSave = this.prepareDataForSave();
 
-    const docRef = await addDoc(collectionRef, dataToSave);
-    this.attributes.id = docRef.id;
-    this.original = { ...this.attributes };
-    this.exists = true;
+    // If ID is already set, use setDoc instead of addDoc
+    if (this.attributes.id) {
+      const docRef = doc(collectionRef, this.attributes.id);
+      await setDoc(docRef, dataToSave);
+      this.original = { ...this.attributes };
+      this.exists = true;
+    } else {
+      const docRef = await addDoc(collectionRef, dataToSave);
+      this.attributes.id = docRef.id;
+      this.original = { ...this.attributes };
+      this.exists = true;
+    }
   }
 
   protected async performUpdate(): Promise<void> {

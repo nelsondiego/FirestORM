@@ -14,6 +14,10 @@
 📄 **JSON First** - Returns plain objects by default (faster, API-ready)  
 🆔 **ID Auto-included** - Document ID always in the object  
 📊 **Pagination** - Three types: standard, simple, and cursor-based  
+🔴 **Real-time** - Built-in support for live subscriptions  
+🔄 **Transactions** - Atomic operations with full type safety  
+📦 **Batch Operations** - Efficient bulk writes (up to 500 ops)  
+🆔 **Custom IDs** - Support for custom document IDs  
 ⚡ **Performance** - Zero overhead, no unnecessary class instantiation  
 🧪 **Well Tested** - Comprehensive test coverage
 
@@ -182,6 +186,67 @@ const result = await User.simplePaginate({
 const result = await User.cursorPaginate({
   perPage: 20,
   afterCursor: 'doc-id',
+});
+```
+
+### Real-time Subscriptions
+
+```typescript
+// Listen to document changes in real-time (receives JSON)
+const unsubscribe = User.listen('user-id', (user) => {
+  if (user) {
+    console.log('User updated:', user); // Already JSON!
+  } else {
+    console.log('User deleted');
+  }
+});
+
+// Stop listening
+unsubscribe();
+```
+
+### Transactions
+
+```typescript
+// Atomic operations - NO Firestore code needed!
+await User.transaction(async (ctx) => {
+  const user = await User.load('user1');
+  const gym = await Gym.load('gym1');
+
+  if (user && gym) {
+    await ctx.update(user, { gymId: gym.id });
+    await ctx.update(gym, { memberCount: gym.get('memberCount') + 1 });
+  }
+});
+```
+
+### Batch Operations
+
+```typescript
+// Bulk writes (up to 500 operations) - NO Firestore code needed!
+await User.batch(async (ctx) => {
+  const user1 = await User.load('user1');
+  const user2 = await User.load('user2');
+
+  if (user1) ctx.update(user1, { status: 'active' });
+  if (user2) ctx.update(user2, { status: 'active' });
+});
+```
+
+### Custom IDs
+
+```typescript
+// Create with custom ID (perfect for Firebase Auth sync)
+const user = await User.create(
+  { name: 'John', email: 'john@example.com' },
+  'custom-user-id'
+);
+
+// Or include ID in data
+const user = await User.create({
+  id: 'my-custom-id',
+  name: 'Jane',
+  email: 'jane@example.com',
 });
 ```
 
