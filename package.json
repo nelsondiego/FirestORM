@@ -1,5 +1,5 @@
 {
-  "name": "firestorm",
+  "name": "ndfirestorm",
   "version": "0.1.0",
   "description": "Eloquent-style ORM for Firebase Firestore with TypeScript",
   "main": "dist/index.js",

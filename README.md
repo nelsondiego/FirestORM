@@ -1,8 +1,8 @@
-# Firestorm 🔥
+# NDFirestORM 🔥
 
 > Eloquent-style ORM for Firebase Firestore with TypeScript
 
-[![npm version](https://img.shields.io/npm/v/firestorm.svg)](https://www.npmjs.com/package/firestorm)
+[![npm version](https://img.shields.io/npm/v/ndfirestorm.svg)](https://www.npmjs.com/package/ndfirestorm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
@@ -20,7 +20,7 @@
 ## Installation
 
 ```bash
-npm install firestorm firebase
+npm install ndfirestorm firebase
 ```
 
 ## Quick Start
@@ -28,7 +28,7 @@ npm install firestorm firebase
 ```typescript
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { initializeOrm, Model, type ModelData } from 'firestorm';
+import { initializeOrm, Model, type ModelData } from 'ndfirestorm';
 
 // Initialize Firebase
 const app = initializeApp({
@@ -105,7 +105,7 @@ export async function getUser(id: string): Promise<UserData | null> {
 }
 
 // Or use type helpers
-import { ModelData, CreateModelData } from 'firestorm';
+import { ModelData, CreateModelData } from 'ndfirestorm';
 
 type UserType = ModelData<User>; // Same as UserData
 type CreateUserInput = CreateModelData<User>; // Without id, timestamps
@@ -249,7 +249,7 @@ export const useUserStore = defineStore('user', {
 
 ## Comparison with Other ORMs
 
-| Feature        | Firestorm        | Fireorm       | Typesaurus    |
+| Feature        | NDFirestORM      | Fireorm       | Typesaurus    |
 | -------------- | ---------------- | ------------- | ------------- |
 | TypeScript     | ✅ First-class   | ✅ Yes        | ✅ Yes        |
 | JSON First     | ✅ Default       | ❌ Always ORM | ❌ Always ORM |
