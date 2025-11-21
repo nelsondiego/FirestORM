@@ -2,7 +2,17 @@
 
 ## [Unreleased]
 
-## [0.2.0] - 2025-11-21
+## [0.1.4] - 2025-11-21
+
+### Fixed
+
+- **Type Visibility Issue**: Fixed TypeScript error when extending `Model` class
+  - Changed `collectionName` from `protected static` to `static` (public)
+  - Changed `getCollectionRef()` from `protected static` to `static` (public)
+  - This resolves the error: "The 'this' context of type 'typeof User' is not assignable to method's 'this' of type 'ModelConstructor<User>'"
+  - No breaking changes - only makes the API more accessible
+
+## [0.1.3] - 2025-11-21
 
 ### Breaking Changes
 

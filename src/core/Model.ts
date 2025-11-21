@@ -74,7 +74,7 @@ export type ModelConstructor<M extends Model> = {
  */
 export abstract class Model<T extends ModelAttributes = any> {
   // Configuration (must be overridden)
-  protected static collectionName: string;
+  static collectionName: string;
 
   // Model data
   protected attributes: Partial<T> = {};
@@ -99,7 +99,7 @@ export abstract class Model<T extends ModelAttributes = any> {
   /**
    * Get collection reference
    */
-  protected static getCollectionRef(): CollectionReference {
+  static getCollectionRef(): CollectionReference {
     const firestore = ModelFactory.getFirestore();
     return collection(firestore, this.collectionName);
   }
