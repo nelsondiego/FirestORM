@@ -75,10 +75,14 @@ const users = await User.all(); // UserData[]
 const user = await User.find('abc123'); // UserData | null
 const firstUser = await User.first(); // UserData | null
 
-// ✅ When you need model methods - Use *Model()
-const userModel = await User.findModel('abc123');
-await userModel.update({ name: 'Jane' });
-await userModel.delete();
+// ✅ create() returns model instance
+const user = await User.create({ name: 'John', email: 'john@example.com' });
+await user.update({ name: 'Jane' });
+
+// ✅ load() gets instance for update/delete
+const user = await User.load('abc123');
+await user?.update({ name: 'Jane' });
+await user?.delete();
 ```
 
 ### Type Safety
@@ -141,12 +145,11 @@ const user = await User.create({
 });
 
 // Read
-const user = await User.find('id'); // JSON
-const userModel = await User.findModel('id'); // Model instance
+const user = await User.find('id'); // Returns JSON
 
 // Update
-const user = await User.findModel('id');
-await user.update({ name: 'Jane' });
+const user = await User.load('id'); // Returns model instance
+await user?.update({ name: 'Jane' });
 
 // Delete
 await user.delete();

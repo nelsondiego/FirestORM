@@ -74,7 +74,7 @@ export async function updateUserStatus(
   userId: string,
   status: ModelData<User>['status']
 ): Promise<void> {
-  const user = await User.findModel(userId);
+  const user = await User.load(userId);
   if (user) {
     await user.update({ status });
   }
@@ -95,7 +95,7 @@ export async function updateUser(
   id: string,
   data: UpdateUserInput
 ): Promise<void> {
-  const user = await User.findModel(id);
+  const user = await User.load(id);
   if (user) {
     await user.update(data);
   }

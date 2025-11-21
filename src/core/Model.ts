@@ -62,7 +62,7 @@ export type ModelConstructor<M extends Model> = {
   getCollectionRef(): CollectionReference;
   query(): any;
   find(id: string): Promise<any>;
-  findModel(id: string): Promise<any>;
+  load(id: string): Promise<any>;
 };
 
 // ============================================
@@ -126,7 +126,7 @@ export abstract class Model<T extends ModelAttributes = any> {
   }
 
   /**
-   * Find by ID and return as plain JSON (default) - Typed
+   * Find by ID and return as plain JSON
    */
   static async find<M extends Model>(
     this: ModelConstructor<M>,
@@ -136,13 +136,19 @@ export abstract class Model<T extends ModelAttributes = any> {
   }
 
   /**
-   * Find by ID and return as Model instance
+   * Load a model instance by ID (for updates/deletes)
    */
-  static async findModel<M extends Model>(
+  static async load<M extends Model>(
     this: ModelConstructor<M>,
     id: string
   ): Promise<InstanceType<ModelConstructor<M>> | null> {
-    return this.query().findModel(id);
+    const data = await this.find(id);
+    if (!data) return null;
+
+    const instance = new this(data as any);
+    (instance as any).exists = true;
+    (instance as any).original = { ...data };
+    return instance as InstanceType<ModelConstructor<M>>;
   }
 
   /**
@@ -160,7 +166,7 @@ export abstract class Model<T extends ModelAttributes = any> {
   }
 
   /**
-   * Get all documents as plain JSON (default) - Typed
+   * Get all documents as plain JSON
    */
   static async all<M extends Model>(
     this: ModelConstructor<M>
@@ -169,16 +175,7 @@ export abstract class Model<T extends ModelAttributes = any> {
   }
 
   /**
-   * Get all documents as Model instances
-   */
-  static async allModels<M extends Model>(
-    this: ModelConstructor<M>
-  ): Promise<any> {
-    return this.query().getModels();
-  }
-
-  /**
-   * Create new document
+   * Create new document and return Model instance
    */
   static async create<M extends Model>(
     this: ModelConstructor<M>,
@@ -196,8 +193,10 @@ export abstract class Model<T extends ModelAttributes = any> {
     this: ModelConstructor<M>,
     id: string
   ): Promise<void> {
-    const model = await this.findModel(id);
-    if (model) {
+    const docData = await this.find(id);
+    if (docData) {
+      const model = new this(docData as any);
+      (model as any).exists = true;
       await model.delete();
     }
   }
@@ -250,7 +249,7 @@ export abstract class Model<T extends ModelAttributes = any> {
       throw new Error('Cannot refresh a model without an ID');
     }
 
-    const fresh = await (this.constructor as any).findModel(this.attributes.id);
+    const fresh = await (this.constructor as any).load(this.attributes.id);
     if (fresh) {
       this.attributes = fresh.attributes;
       this.original = { ...fresh.attributes };

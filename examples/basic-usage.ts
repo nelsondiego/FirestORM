@@ -77,8 +77,8 @@ async function examples() {
   console.log('Total users:', paginated.meta.total);
   console.log('Has more pages:', paginated.meta.hasMorePages
 
-  // Update user (need model instance)
-  const userModel = await User.findModel(user.id!);
+  // Update user (load model instance)
+  const userModel = await User.load(user.id!);
   if (userModel) {
     await userModel.update({ name: 'Jane Doe' });
     console.log('Updated user');
