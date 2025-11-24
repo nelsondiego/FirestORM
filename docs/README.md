@@ -64,6 +64,13 @@ Complete documentation for NDFirestORM - An Eloquent-style ORM for Firebase Fire
    - Performance optimization
    - Code organization
 
+9. [**Subcollections**](./09-subcollections.md)
+   - Accessing subcollections
+   - Querying nested data
+   - Real-time subscriptions
+   - Batch delete operations
+   - Complete deletion examples
+
 ## 🚀 Quick Start
 
 ```bash

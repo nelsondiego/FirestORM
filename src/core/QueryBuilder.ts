@@ -10,11 +10,13 @@ import {
   getCountFromServer,
   doc,
   onSnapshot,
+  writeBatch,
   QueryConstraint,
   DocumentSnapshot,
   Unsubscribe,
 } from 'firebase/firestore';
 import { Model, ModelData, ModelConstructor } from './Model';
+import { ModelFactory } from './ModelFactory';
 import { WhereOperator } from '../types';
 import { ModelNotFoundError } from '../errors/ModelNotFoundError';
 
@@ -46,9 +48,21 @@ export interface PaginatedResult<T> {
 export class QueryBuilder<M extends Model> {
   private constraints: QueryConstraint[] = [];
   private modelConstructor: ModelConstructor<M>;
+  private customCollectionRef?: any;
 
-  constructor(modelConstructor: ModelConstructor<M>) {
+  constructor(
+    modelConstructor: ModelConstructor<M>,
+    customCollectionRef?: any
+  ) {
     this.modelConstructor = modelConstructor;
+    this.customCollectionRef = customCollectionRef;
+  }
+
+  /**
+   * Get the collection reference (either custom or from model)
+   */
+  private getCollectionRef(): any {
+    return this.customCollectionRef || this.modelConstructor.getCollectionRef();
   }
 
   /**
@@ -129,13 +143,13 @@ export class QueryBuilder<M extends Model> {
    * Execute query and get results as plain JSON
    */
   async get(): Promise<ModelData<M>[]> {
-    const collectionRef = this.modelConstructor.getCollectionRef();
+    const collectionRef = this.getCollectionRef();
     const q = query(collectionRef, ...this.constraints);
     const snapshot = await getDocs(q);
 
     return snapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data(),
+      ...(doc.data() as any),
     })) as ModelData<M>[];
   }
 
@@ -159,7 +173,7 @@ export class QueryBuilder<M extends Model> {
    * Find by ID and return as plain JSON
    */
   async find(id: string): Promise<ModelData<M> | null> {
-    const collectionRef = this.modelConstructor.getCollectionRef();
+    const collectionRef = this.getCollectionRef();
     const docRef = doc(collectionRef, id);
     const docSnap = await getDoc(docRef);
 
@@ -182,7 +196,7 @@ export class QueryBuilder<M extends Model> {
   }): Promise<PaginatedResult<ModelData<M>>> {
     const perPage = options?.perPage ?? 10;
     const page = options?.page ?? 1;
-    const collectionRef = this.modelConstructor.getCollectionRef();
+    const collectionRef = this.getCollectionRef();
 
     // Get total count
     const countQuery = query(collectionRef, ...this.constraints);
@@ -217,7 +231,7 @@ export class QueryBuilder<M extends Model> {
 
     const data = snapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data(),
+      ...(doc.data() as any),
     })) as ModelData<M>[];
 
     const firstDoc = snapshot.docs[0] || null;
@@ -234,8 +248,8 @@ export class QueryBuilder<M extends Model> {
         to: data.length > 0 ? from + data.length - 1 : 0,
         hasMorePages: page < lastPage,
       },
-      firstDoc,
-      lastDoc,
+      firstDoc: firstDoc as any,
+      lastDoc: lastDoc as any,
     };
   }
 
@@ -253,7 +267,7 @@ export class QueryBuilder<M extends Model> {
     const perPage = options?.perPage ?? 10;
     const cursor = options?.cursor;
 
-    const collectionRef = this.modelConstructor.getCollectionRef();
+    const collectionRef = this.getCollectionRef();
     const paginatedConstraints = [...this.constraints, limit(perPage + 1)];
 
     if (cursor) {
@@ -268,14 +282,14 @@ export class QueryBuilder<M extends Model> {
 
     const data = docs.map((doc) => ({
       id: doc.id,
-      ...doc.data(),
+      ...(doc.data() as any),
     })) as ModelData<M>[];
 
     const nextCursor = hasMorePages ? docs[docs.length - 1] : null;
 
     return {
       data,
-      nextCursor,
+      nextCursor: nextCursor as any,
       hasMorePages,
     };
   }
@@ -298,7 +312,7 @@ export class QueryBuilder<M extends Model> {
     const afterCursor = options?.afterCursor;
     const beforeCursor = options?.beforeCursor;
 
-    const collectionRef = this.modelConstructor.getCollectionRef();
+    const collectionRef = this.getCollectionRef();
     const paginatedConstraints = [...this.constraints];
 
     // Handle cursor navigation
@@ -324,7 +338,7 @@ export class QueryBuilder<M extends Model> {
 
     const data = docs.map((doc) => ({
       id: doc.id,
-      ...doc.data(),
+      ...(doc.data() as any),
     })) as ModelData<M>[];
 
     return {
@@ -349,7 +363,7 @@ export class QueryBuilder<M extends Model> {
    * unsubscribe();
    */
   listen(callback: (data: ModelData<M>[]) => void): Unsubscribe {
-    const collectionRef = this.modelConstructor.getCollectionRef();
+    const collectionRef = this.getCollectionRef();
     const q = query(collectionRef, ...this.constraints);
 
     return onSnapshot(
@@ -357,7 +371,7 @@ export class QueryBuilder<M extends Model> {
       (snapshot) => {
         const data = snapshot.docs.map((doc) => ({
           id: doc.id,
-          ...doc.data(),
+          ...(doc.data() as any),
         })) as ModelData<M>[];
 
         callback(data);
@@ -370,10 +384,55 @@ export class QueryBuilder<M extends Model> {
   }
 
   /**
+   * Delete all documents matching the query
+   * Uses batches to handle large datasets (500 docs per batch)
+   * @returns Promise with the number of documents deleted
+   * @example
+   * // Delete all inactive users
+   * const deleted = await User.where('status', '==', 'inactive').deleteAll();
+   * console.log(`Deleted ${deleted} users`);
+   *
+   * // Delete all equipment in a subcollection
+   * const gym = await Gym.load('gym123');
+   * await gym.subcollection('equipments').deleteAll();
+   */
+  async deleteAll(): Promise<number> {
+    const firestore = ModelFactory.getFirestore();
+    const docs = await this.get();
+
+    if (docs.length === 0) {
+      return 0;
+    }
+
+    const BATCH_SIZE = 500;
+    let deletedCount = 0;
+
+    // Process in batches of 500
+    for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+      const batch = writeBatch(firestore);
+      const batchDocs = docs.slice(i, i + BATCH_SIZE);
+
+      batchDocs.forEach((docData) => {
+        const collectionRef = this.getCollectionRef();
+        const docRef = doc(collectionRef, docData.id);
+        batch.delete(docRef);
+      });
+
+      await batch.commit();
+      deletedCount += batchDocs.length;
+    }
+
+    return deletedCount;
+  }
+
+  /**
    * Clone query builder
    */
   clone(): QueryBuilder<M> {
-    const cloned = new QueryBuilder(this.modelConstructor);
+    const cloned = new QueryBuilder(
+      this.modelConstructor,
+      this.customCollectionRef
+    );
     cloned.constraints = [...this.constraints];
     return cloned;
   }

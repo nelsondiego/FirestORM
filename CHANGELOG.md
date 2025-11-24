@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [0.1.8] - 2025-11-21
+
+### Added
+
+- **Subcollection Support**: Access nested collections in Firestore
+  - `Model.subcollection(parentId, name)` - Static method to access subcollections
+  - `model.subcollection(name)` - Instance method to access subcollections
+  - Full QueryBuilder support (where, orderBy, limit, listen, etc.)
+  - Example: `const equipments = await gym.subcollection('equipments').get()`
+  - Example: `await Gym.subcollection('gym123', 'equipments').where('status', '==', 'active').get()`
+
+- **Batch Delete**: Delete all documents matching a query
+  - `QueryBuilder.deleteAll()` - Delete all documents in query results
+  - Automatically handles batching (500 docs per batch)
+  - Works with subcollections
+  - Example: `await User.where('status', '==', 'inactive').deleteAll()`
+  - Example: `await gym.subcollection('equipments').deleteAll()`
+
+### Fixed
+
+- TypeScript spread type errors in QueryBuilder
+- DocumentSnapshot type compatibility issues
+
 ## [0.1.7] - 2025-11-21
 
 ### Fixed

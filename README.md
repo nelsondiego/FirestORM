@@ -17,6 +17,8 @@
 🔴 **Real-time** - Built-in support for live subscriptions  
 🔄 **Transactions** - Atomic operations with full type safety  
 📦 **Batch Operations** - Efficient bulk writes (up to 500 ops)  
+🗂️ **Subcollections** - Full support for nested collections  
+🗑️ **Batch Delete** - Delete all documents matching a query  
 🆔 **Custom IDs** - Support for custom document IDs  
 ⚡ **Performance** - Zero overhead, no unnecessary class instantiation  
 🧪 **Well Tested** - Comprehensive test coverage

@@ -279,6 +279,33 @@ export abstract class Model<T extends ModelAttributes = any> {
   }
 
   /**
+   * Access a subcollection from a parent document
+   * @param parentId - ID of the parent document
+   * @param subcollectionName - Name of the subcollection
+   * @returns QueryBuilder for the subcollection
+   * @example
+   * // Get all equipment for a gym
+   * const equipments = await Gym.subcollection('gym123', 'equipments').get();
+   *
+   * // Query subcollection
+   * const activeEquipments = await Gym.subcollection('gym123', 'equipments')
+   *   .where('status', '==', 'active')
+   *   .get();
+   */
+  static subcollection<M extends Model>(
+    this: ModelConstructor<M>,
+    parentId: string,
+    subcollectionName: string
+  ): any {
+    const firestore = ModelFactory.getFirestore();
+    const parentDocRef = doc(firestore, this.collectionName, parentId);
+    const subcollectionRef = collection(parentDocRef, subcollectionName);
+
+    // Create a QueryBuilder with the subcollection reference
+    return new QueryBuilder(this, subcollectionRef);
+  }
+
+  /**
    * Find by ID and return as plain JSON
    */
   static async find<M extends Model>(
@@ -585,6 +612,25 @@ export abstract class Model<T extends ModelAttributes = any> {
     }
 
     return this;
+  }
+
+  /**
+   * Access a subcollection from this model instance
+   * @param subcollectionName - Name of the subcollection
+   * @returns QueryBuilder for the subcollection
+   * @example
+   * const gym = await Gym.load('gym123');
+   * const equipments = await gym.subcollection('equipments').get();
+   */
+  subcollection(subcollectionName: string): any {
+    if (!this.attributes.id) {
+      throw new Error('Cannot access subcollection without document ID');
+    }
+
+    return (this.constructor as any).subcollection(
+      this.attributes.id,
+      subcollectionName
+    );
   }
 
   /**
