@@ -13,7 +13,7 @@ Subscribe to real-time updates for a document.
 ```typescript
 import { User, type UserData, type Unsubscribe } from 'ndfirestorm';
 
-// Listen to a user document (receives JSON)
+// Listen to a single document (receives JSON)
 const unsubscribe: Unsubscribe = User.listen(
   'user123',
   (user: UserData | null) => {
@@ -30,7 +30,30 @@ const unsubscribe: Unsubscribe = User.listen(
 unsubscribe();
 ```
 
-### React Hook Example
+### Listen to Query Results
+
+```typescript
+// Listen to all admins in real-time
+const unsubscribe = User.where('role', '==', 'admin').listen((admins) => {
+  console.log('Admins updated:', admins);
+  console.log('Total admins:', admins.length);
+});
+
+// Listen to active users
+const unsubscribe = User.where('status', '==', 'active')
+  .orderBy('createdAt', 'desc')
+  .limit(10)
+  .listen((users) => {
+    console.log('Latest 10 active users:', users);
+  });
+
+// Stop listening
+unsubscribe();
+```
+
+### React Hook Examples
+
+#### Single Document
 
 ```typescript
 import { useState, useEffect } from 'react';
@@ -67,6 +90,43 @@ function UserProfile({ userId }: { userId: string }) {
       <h1>{user.name}</h1>
       <p>{user.email}</p>
     </div>
+  );
+}
+```
+
+#### Query Results
+
+```typescript
+function useAdmins() {
+  const [admins, setAdmins] = useState<UserData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = User.where('role', '==', 'admin')
+      .orderBy('name', 'asc')
+      .listen((adminUsers) => {
+        setAdmins(adminUsers);
+        setLoading(false);
+      });
+
+    return () => unsubscribe();
+  }, []);
+
+  return { admins, loading };
+}
+
+// Usage
+function AdminList() {
+  const { admins, loading } = useAdmins();
+
+  if (loading) return <div>Loading...</div>;
+
+  return (
+    <ul>
+      {admins.map((admin) => (
+        <li key={admin.id}>{admin.name}</li>
+      ))}
+    </ul>
   );
 }
 ```

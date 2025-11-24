@@ -192,13 +192,18 @@ const result = await User.cursorPaginate({
 ### Real-time Subscriptions
 
 ```typescript
-// Listen to document changes in real-time (receives JSON)
+// Listen to a single document (receives JSON)
 const unsubscribe = User.listen('user-id', (user) => {
   if (user) {
     console.log('User updated:', user); // Already JSON!
   } else {
     console.log('User deleted');
   }
+});
+
+// Listen to query results (receives JSON array)
+const unsubscribe = User.where('role', '==', 'admin').listen((admins) => {
+  console.log('Admins updated:', admins); // Array of JSON objects
 });
 
 // Stop listening

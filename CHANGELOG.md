@@ -6,11 +6,15 @@
 
 ### Added
 
-- **Real-time Subscriptions**: New `Model.listen()` method for real-time document updates
+- **Real-time Subscriptions**: New `listen()` methods for real-time updates
+  - `Model.listen(id, callback)` - Listen to a single document
+  - `QueryBuilder.listen(callback)` - Listen to query results
   - Returns `Unsubscribe` function for cleanup
   - **JSON First**: Callback receives plain JSON data (not model instance)
   - Built-in error handling
-  - Example: `User.listen('id', (user) => console.log(user.name))`
+  - Examples:
+    - Single document: `User.listen('id', (user) => console.log(user.name))`
+    - Query results: `User.where('role', '==', 'admin').listen((admins) => console.log(admins))`
 
 - **Transactions**: New `Model.transaction()` method for atomic operations
   - Run multiple reads and writes atomically

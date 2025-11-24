@@ -65,8 +65,8 @@ class Order extends Model<OrderData> {
 async function realtimeExamples() {
   console.log('=== Real-time Subscriptions ===');
 
-  // Basic listen (receives JSON)
-  const unsubscribe = User.listen('user123', (user) => {
+  // Example 1: Listen to a single document (receives JSON)
+  const unsubscribe1 = User.listen('user123', (user) => {
     if (user) {
       console.log('User updated:', user); // Already JSON!
       console.log('Name:', user.name);
@@ -75,12 +75,28 @@ async function realtimeExamples() {
     }
   });
 
+  // Example 2: Listen to query results (receives JSON array)
+  const unsubscribe2 = User.where('role', '==', 'admin').listen((admins) => {
+    console.log('Admins updated:', admins);
+    console.log('Total admins:', admins.length);
+  });
+
+  // Example 3: Listen to active users with ordering and limit
+  const unsubscribe3 = User.where('status', '==', 'active')
+    .orderBy('createdAt', 'desc')
+    .limit(10)
+    .listen((users) => {
+      console.log('Latest 10 active users:', users);
+    });
+
   // Simulate some time passing
   await new Promise((resolve) => setTimeout(resolve, 5000));
 
   // Stop listening
-  unsubscribe();
-  console.log('Stopped listening');
+  unsubscribe1();
+  unsubscribe2();
+  unsubscribe3();
+  console.log('Stopped all listeners');
 }
 
 // ============================================

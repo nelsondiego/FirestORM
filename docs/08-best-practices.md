@@ -266,11 +266,16 @@ await User.batch(async (ctx) => {
 Use `listen()` for **real-time UI updates**:
 
 ```typescript
-// ✅ Good use case: Live dashboard
+// ✅ Good use case: Live dashboard (single document)
 const unsubscribe = User.listen('user123', (user) => {
   if (user) {
     updateUI(user); // Already JSON!
   }
+});
+
+// ✅ Good use case: Live list (query results)
+const unsubscribe = User.where('status', '==', 'active').listen((users) => {
+  updateUserList(users); // Already JSON array!
 });
 
 // ❌ Bad - Using for one-time reads
@@ -282,21 +287,36 @@ const unsubscribe = User.listen('user123', (user) => {
 // ✅ Good - Use find() for one-time reads
 const user = await User.find('user123');
 console.log(user);
+
+// ✅ Good - Use get() for one-time query
+const users = await User.where('status', '==', 'active').get();
+console.log(users);
 ```
 
 ### Subscription Best Practices
 
 ```typescript
-// ✅ Always cleanup subscriptions
+// ✅ Always cleanup subscriptions (single document)
 function UserComponent({ userId }) {
   useEffect(() => {
     const unsubscribe = User.listen(userId, (user) => {
-      setUser(user?.toJSON());
+      setUser(user);
     });
 
     // Cleanup on unmount
     return () => unsubscribe();
   }, [userId]);
+}
+
+// ✅ Always cleanup subscriptions (query)
+function AdminListComponent() {
+  useEffect(() => {
+    const unsubscribe = User.where('role', '==', 'admin').listen((admins) => {
+      setAdmins(admins);
+    });
+
+    return () => unsubscribe();
+  }, []);
 }
 
 // ✅ Handle null/deleted documents
@@ -305,6 +325,15 @@ User.listen('user123', (user) => {
     console.log('User exists:', user); // Already JSON!
   } else {
     console.log('User deleted or does not exist');
+  }
+});
+
+// ✅ Handle empty query results
+User.where('status', '==', 'inactive').listen((users) => {
+  if (users.length === 0) {
+    console.log('No inactive users');
+  } else {
+    console.log('Inactive users:', users);
   }
 });
 

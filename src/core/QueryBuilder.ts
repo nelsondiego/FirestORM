@@ -9,8 +9,10 @@ import {
   getDoc,
   getCountFromServer,
   doc,
+  onSnapshot,
   QueryConstraint,
   DocumentSnapshot,
+  Unsubscribe,
 } from 'firebase/firestore';
 import { Model, ModelData, ModelConstructor } from './Model';
 import { WhereOperator } from '../types';
@@ -332,6 +334,39 @@ export class QueryBuilder<M extends Model> {
       hasNextPage: hasMore,
       hasPrevPage: !!afterCursor || !!beforeCursor,
     };
+  }
+
+  /**
+   * Listen to real-time updates for a query (returns JSON array)
+   * @param callback - Callback function that receives the query results as JSON array
+   * @returns Unsubscribe function
+   * @example
+   * const unsubscribe = User.where('role', '==', 'admin').listen((users) => {
+   *   console.log('Admins updated:', users);
+   * });
+   *
+   * // Stop listening
+   * unsubscribe();
+   */
+  listen(callback: (data: ModelData<M>[]) => void): Unsubscribe {
+    const collectionRef = this.modelConstructor.getCollectionRef();
+    const q = query(collectionRef, ...this.constraints);
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as ModelData<M>[];
+
+        callback(data);
+      },
+      (error) => {
+        console.error('Error listening to query:', error);
+        callback([]);
+      }
+    );
   }
 
   /**
