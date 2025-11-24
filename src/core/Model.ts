@@ -16,6 +16,7 @@ import {
 import { ModelFactory } from './ModelFactory';
 import { ModelAttributes } from '../types';
 import { ModelNotFoundError } from '../errors/ModelNotFoundError';
+import { QueryBuilder } from './QueryBuilder';
 
 // ============================================
 // TYPE UTILITIES
@@ -262,8 +263,6 @@ export abstract class Model<T extends ModelAttributes = any> {
    * Create new query builder
    */
   static query<M extends Model>(this: ModelConstructor<M>): any {
-    // Lazy import to avoid circular dependency
-    const { QueryBuilder } = require('./QueryBuilder');
     return new QueryBuilder(this);
   }
 

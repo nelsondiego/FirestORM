@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.1.7] - 2025-11-21
+
+### Fixed
+
+- **ESM Build Issue**: Fixed critical error in Vite applications
+  - Removed `require()` from `Model.query()` method
+  - Changed to proper ES module import of `QueryBuilder`
+  - Fixes error: "Could not resolve './QueryBuilder' in node_modules/ndfirestorm/dist/index.esm.js"
+  - Now fully compatible with Vite and other ESM-only bundlers
+
 ## [0.1.6] - 2025-11-21
 
 ### Added
