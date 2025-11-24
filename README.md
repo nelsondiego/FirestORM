@@ -19,6 +19,7 @@
 📦 **Batch Operations** - Efficient bulk writes (up to 500 ops)  
 🗂️ **Subcollections** - Full support for nested collections  
 🗑️ **Batch Delete** - Delete all documents matching a query  
+💥 **Atomic Cascade Delete** - Delete documents with subcollections atomically (NEW!)  
 🆔 **Custom IDs** - Support for custom document IDs  
 ⚡ **Performance** - Zero overhead, no unnecessary class instantiation  
 🧪 **Well Tested** - Comprehensive test coverage
@@ -238,6 +239,31 @@ await User.batch(async (ctx) => {
   if (user1) ctx.update(user1, { status: 'active' });
   if (user2) ctx.update(user2, { status: 'active' });
 });
+```
+
+### Atomic Subcollection Deletion (NEW!)
+
+```typescript
+// Delete document with all subcollections atomically
+await Gym.transaction(async (ctx) => {
+  const gym = await Gym.load('gym123');
+  if (!gym) throw new Error('Gym not found');
+
+  // Delete gym and all subcollections in one atomic operation
+  await ctx.deleteCascade(gym, {
+    subcollections: ['equipments', 'members', 'features'],
+    onBeforeDelete: async () => {
+      // Delete related collections
+      const staff = await GymStaff.where('gymId', '==', gym.id).get();
+      for (const s of staff) {
+        const staffModel = await GymStaff.load(s.id);
+        if (staffModel) await ctx.delete(staffModel);
+      }
+    },
+  });
+});
+
+// ✅ Either everything succeeds or nothing changes - true atomicity!
 ```
 
 ### Custom IDs

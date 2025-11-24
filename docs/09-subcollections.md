@@ -131,10 +131,10 @@ function GymEquipment({ gymId }: { gymId: string }) {
 
 ## 🗑️ Deleting Subcollections
 
-### Delete All Documents
+### Delete All Documents (Batch)
 
 ```typescript
-// Delete all equipment in a gym
+// Delete all equipment in a gym (uses batch internally)
 const gym = await Gym.load('gym123');
 const deletedCount = await gym.subcollection('equipments').deleteAll();
 console.log(`Deleted ${deletedCount} equipment items`);
@@ -147,28 +147,130 @@ const deletedCount = await gym
 console.log(`Deleted ${deletedCount} broken equipment`);
 ```
 
-### Delete in Transaction
+### Atomic Delete in Transaction (NEW!)
+
+Delete subcollections atomically within a transaction:
 
 ```typescript
+// Delete subcollections atomically
 await Gym.transaction(async (ctx) => {
   const gym = await Gym.load('gym123');
   if (!gym) throw new Error('Gym not found');
 
-  // Get subcollection documents
-  const equipments = await gym.subcollection('equipments').get();
+  // Delete subcollections within transaction
+  await ctx.deleteSubcollection(gym, 'equipments');
+  await ctx.deleteSubcollection(gym, 'members');
+  await ctx.deleteSubcollection(gym, 'features');
 
-  // Note: deleteAll() uses batches internally, so for transactions
-  // you need to handle subcollection deletes separately or use batch
-
-  // Delete gym
+  // Delete parent document
   await ctx.delete(gym);
 });
 
-// Then delete subcollections with batch
-await Gym.subcollection('gym123', 'equipments').deleteAll();
+console.log('Gym and all subcollections deleted atomically!');
+```
+
+### Cascade Delete Helper
+
+Use `deleteCascade()` for cleaner code:
+
+```typescript
+// Automatically delete subcollections with parent
+await Gym.transaction(async (ctx) => {
+  const gym = await Gym.load('gym123');
+  if (!gym) throw new Error('Gym not found');
+
+  // Delete gym and all subcollections in one call
+  await ctx.deleteCascade(gym, {
+    subcollections: ['equipments', 'members', 'features'],
+  });
+});
+```
+
+### Cascade Delete with Related Data
+
+```typescript
+// Delete gym with subcollections and related collections
+await Gym.transaction(async (ctx) => {
+  const gym = await Gym.load('gym123');
+  if (!gym) throw new Error('Gym not found');
+
+  // Delete gym with subcollections and custom logic
+  await ctx.deleteCascade(gym, {
+    subcollections: ['equipments', 'members', 'features'],
+    onBeforeDelete: async () => {
+      // Delete related collections
+      const staff = await GymStaff.where('gymId', '==', gym.id).get();
+      for (const s of staff) {
+        const staffModel = await GymStaff.load(s.id);
+        if (staffModel) await ctx.delete(staffModel);
+      }
+
+      // Update user references
+      const users = await User.where('myGyms', 'array-contains', gym.id).get();
+      for (const u of users) {
+        const user = await User.load(u.id);
+        if (user) {
+          const currentGyms = user.get('myGyms') || [];
+          await ctx.update(user, {
+            myGyms: currentGyms.filter((id) => id !== gym.id),
+          });
+        }
+      }
+    },
+  });
+});
+
+console.log('Complete atomic deletion successful!');
 ```
 
 ## 🎯 Complete Example: Delete Gym with Related Data
+
+### Atomic Approach (Recommended)
+
+Everything happens atomically - either all succeeds or nothing changes:
+
+```typescript
+async function deleteGymAtomically(gymId: string) {
+  await Gym.transaction(async (ctx) => {
+    const gym = await Gym.load(gymId);
+    if (!gym) throw new Error('Gym not found');
+
+    // Delete gym with all subcollections and related data atomically
+    await ctx.deleteCascade(gym, {
+      subcollections: ['equipments', 'members', 'features'],
+      onBeforeDelete: async () => {
+        // Delete all gym staff
+        const staffMembers = await GymStaff.where('gymId', '==', gymId).get();
+        for (const staffData of staffMembers) {
+          const staff = await GymStaff.load(staffData.id);
+          if (staff) await ctx.delete(staff);
+        }
+
+        // Update users - remove gym from myGyms array
+        const users = await User.where('myGyms', 'array-contains', gymId).get();
+        for (const userData of users) {
+          const user = await User.load(userData.id);
+          if (user) {
+            const currentGyms = user.get('myGyms') || [];
+            await ctx.update(user, {
+              myGyms: currentGyms.filter((id) => id !== gymId),
+            });
+          }
+        }
+      },
+    });
+  });
+
+  console.log('✅ Gym and all related data deleted atomically!');
+}
+
+// Usage
+await deleteGymAtomically('gym123');
+```
+
+### Non-Atomic Approach (For Large Datasets)
+
+Use when you have more than 500 total documents to delete:
 
 ```typescript
 async function deleteGymCompletely(gymId: string) {
@@ -298,35 +400,54 @@ for (let i = 0; i < equipments.length; i += CHUNK_SIZE) {
 
 ## ⚠️ Limitations
 
-### Subcollections in Transactions
+### Transaction Size Limit
 
-Firestore transactions have limitations with subcollections. For complex deletions:
-
-1. **Use deleteAll() outside transaction** for subcollections
-2. **Use transaction** for parent and related collections
-3. **Combine both** for complete atomic-like behavior
+Firestore transactions have a **500 document limit**. If you need to delete more:
 
 ```typescript
-// Recommended pattern
-async function deleteGym(gymId: string) {
-  // 1. Delete subcollections (batch)
-  await Gym.subcollection(gymId, 'equipments').deleteAll();
-  await Gym.subcollection(gymId, 'members').deleteAll();
+// ✅ Good - Under 500 documents total
+await Gym.transaction(async (ctx) => {
+  const gym = await Gym.load('gym123');
+  if (gym) {
+    await ctx.deleteCascade(gym, {
+      subcollections: ['equipments', 'members'], // < 500 docs total
+    });
+  }
+});
 
-  // 2. Delete related data (transaction)
-  await Gym.transaction(async (ctx) => {
-    const gym = await Gym.load(gymId);
-    const staff = await GymStaff.where('gymId', '==', gymId).get();
+// ❌ Bad - Over 500 documents
+await Gym.transaction(async (ctx) => {
+  const gym = await Gym.load('gym123');
+  if (gym) {
+    await ctx.deleteCascade(gym, {
+      subcollections: ['equipments'], // 1000+ documents - will fail!
+    });
+  }
+});
 
-    for (const s of staff) {
-      const staffModel = await GymStaff.load(s.id);
-      if (staffModel) await ctx.delete(staffModel);
-    }
+// ✅ Solution - Use deleteAll() for large subcollections
+const equipmentCount = await Gym.subcollection(
+  'gym123',
+  'equipments'
+).deleteAll();
+console.log(`Deleted ${equipmentCount} equipment items`);
 
-    if (gym) await ctx.delete(gym);
-  });
-}
+// Then delete parent in transaction
+await Gym.transaction(async (ctx) => {
+  const gym = await Gym.load('gym123');
+  if (gym) await ctx.delete(gym);
+});
 ```
+
+### Choosing the Right Approach
+
+| Scenario                               | Approach                              |
+| -------------------------------------- | ------------------------------------- |
+| < 500 total documents                  | ✅ Use `ctx.deleteCascade()` (atomic) |
+| > 500 documents in subcollections      | ⚠️ Use `deleteAll()` then transaction |
+| Need absolute atomicity                | ✅ Use `ctx.deleteCascade()` (atomic) |
+| Large dataset, atomicity less critical | ⚠️ Use `deleteAll()` (batch)          |
+| Mix of small and large subcollections  | ⚠️ Atomic for small, batch for large  |
 
 ## 🔗 Next
 

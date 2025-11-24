@@ -81,10 +81,13 @@ export type ModelConstructor<M extends Model> = {
  */
 export class TransactionContext {
   private operations: Array<{
-    type: 'create' | 'update' | 'delete';
-    model: any;
+    type: 'create' | 'update' | 'delete' | 'deleteSubcollection';
+    model?: any;
     data?: any;
     customId?: string;
+    parentModel?: any;
+    subcollectionName?: string;
+    subcollectionDocs?: any[];
   }> = [];
 
   /**
@@ -133,6 +136,78 @@ export class TransactionContext {
       type: 'delete',
       model,
     });
+  }
+
+  /**
+   * Delete all documents in a subcollection within the transaction
+   * @param parentModel - Parent model instance
+   * @param subcollectionName - Name of the subcollection to delete
+   * @example
+   * await Gym.transaction(async (ctx) => {
+   *   const gym = await Gym.load('gym123');
+   *   if (gym) {
+   *     await ctx.deleteSubcollection(gym, 'equipments');
+   *     await ctx.deleteSubcollection(gym, 'members');
+   *     await ctx.delete(gym);
+   *   }
+   * });
+   */
+  async deleteSubcollection<M extends Model>(
+    parentModel: M,
+    subcollectionName: string
+  ): Promise<void> {
+    if (!parentModel.id) {
+      throw new Error('Cannot delete subcollection without parent document ID');
+    }
+
+    // Get all documents in the subcollection
+    const subcollectionDocs = await parentModel
+      .subcollection(subcollectionName)
+      .get();
+
+    this.operations.push({
+      type: 'deleteSubcollection',
+      parentModel,
+      subcollectionName,
+      subcollectionDocs,
+    });
+  }
+
+  /**
+   * Delete a document and all its subcollections atomically
+   * @param model - Model instance to delete
+   * @param options - Cascade delete options
+   * @example
+   * await Gym.transaction(async (ctx) => {
+   *   const gym = await Gym.load('gym123');
+   *   if (gym) {
+   *     await ctx.deleteCascade(gym, {
+   *       subcollections: ['equipments', 'members', 'features']
+   *     });
+   *   }
+   * });
+   */
+  async deleteCascade<M extends Model>(
+    model: M,
+    options: {
+      subcollections?: string[];
+      onBeforeDelete?: () => Promise<void>;
+    } = {}
+  ): Promise<void> {
+    const { subcollections = [], onBeforeDelete } = options;
+
+    // Execute before delete hook
+    if (onBeforeDelete) {
+      await onBeforeDelete();
+    }
+
+    // Delete all subcollections
+    for (const subcollectionName of subcollections) {
+      await this.deleteSubcollection(model, subcollectionName);
+    }
+
+    // Delete the parent document
+    await this.delete(model);
   }
 
   /**
@@ -447,41 +522,68 @@ export abstract class Model<T extends ModelAttributes = any> {
       const operations = ctx.getOperations();
 
       for (const op of operations) {
-        const model = op.model;
-        const collectionRef = (model.constructor as any).getCollectionRef();
+        if (op.type === 'deleteSubcollection') {
+          // Delete all documents in the subcollection
+          const subcollectionDocs = op.subcollectionDocs || [];
+          const parentModel = op.parentModel;
+          const subcollectionName = op.subcollectionName;
 
-        if (op.type === 'create') {
-          const dataToSave = model.prepareDataForSave();
+          if (!parentModel || !subcollectionName) {
+            throw new Error('Invalid subcollection delete operation');
+          }
 
-          if (model.attributes.id) {
+          const parentCollectionRef = (
+            parentModel.constructor as any
+          ).getCollectionRef();
+          const parentDocRef = doc(
+            parentCollectionRef,
+            parentModel.attributes.id
+          );
+
+          for (const docData of subcollectionDocs) {
+            const subcollectionDocRef = doc(
+              collection(parentDocRef, subcollectionName),
+              docData.id
+            );
+            transaction.delete(subcollectionDocRef);
+          }
+        } else {
+          const model = op.model;
+          const collectionRef = (model.constructor as any).getCollectionRef();
+
+          if (op.type === 'create') {
+            const dataToSave = model.prepareDataForSave();
+
+            if (model.attributes.id) {
+              const docRef = doc(collectionRef, model.attributes.id);
+              transaction.set(docRef, dataToSave);
+            } else {
+              // Generate ID for transaction
+              const docRef = doc(collectionRef);
+              model.attributes.id = docRef.id;
+              transaction.set(docRef, dataToSave);
+            }
+
+            model.exists = true;
+            model.original = { ...model.attributes };
+          } else if (op.type === 'update') {
+            if (!model.attributes.id) {
+              throw new Error('Cannot update model without ID');
+            }
+
             const docRef = doc(collectionRef, model.attributes.id);
-            transaction.set(docRef, dataToSave);
-          } else {
-            // Generate ID for transaction
-            const docRef = doc(collectionRef);
-            model.attributes.id = docRef.id;
-            transaction.set(docRef, dataToSave);
-          }
+            const dataToUpdate = model.prepareDataForSave(true);
+            transaction.update(docRef, dataToUpdate);
+            model.original = { ...model.attributes };
+          } else if (op.type === 'delete') {
+            if (!model.attributes.id) {
+              throw new Error('Cannot delete model without ID');
+            }
 
-          model.exists = true;
-          model.original = { ...model.attributes };
-        } else if (op.type === 'update') {
-          if (!model.attributes.id) {
-            throw new Error('Cannot update model without ID');
+            const docRef = doc(collectionRef, model.attributes.id);
+            transaction.delete(docRef);
+            model.exists = false;
           }
-
-          const docRef = doc(collectionRef, model.attributes.id);
-          const dataToUpdate = model.prepareDataForSave(true);
-          transaction.update(docRef, dataToUpdate);
-          model.original = { ...model.attributes };
-        } else if (op.type === 'delete') {
-          if (!model.attributes.id) {
-            throw new Error('Cannot delete model without ID');
-          }
-
-          const docRef = doc(collectionRef, model.attributes.id);
-          transaction.delete(docRef);
-          model.exists = false;
         }
       }
     });

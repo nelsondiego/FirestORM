@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [0.1.9] - 2025-11-24
+
+### Added
+
+- **Atomic Subcollection Deletion**: Delete subcollections within transactions for true atomicity
+  - `ctx.deleteSubcollection(model, 'subcollectionName')` - Delete subcollection in transaction
+  - `ctx.deleteCascade(model, options)` - Delete model with subcollections and custom logic
+  - Solves the problem of orphaned data when deleting documents with subcollections
+  - All operations are atomic - either everything succeeds or nothing changes
+  - Example: `await ctx.deleteCascade(gym, { subcollections: ['equipments', 'members'] })`
+  - Supports `onBeforeDelete` hook for deleting related collections
+  - Works within the 500 document transaction limit
+  - For larger datasets, use `deleteAll()` (batch) then transaction
+
+### Documentation
+
+- Updated `docs/09-subcollections.md` with atomic deletion examples
+- Updated `docs/07-realtime-transactions.md` with cascade delete patterns
+- Added comprehensive example: `examples/atomic-cascade-delete.ts`
+- Added migration guide for atomic vs non-atomic deletion patterns
+
 ## [0.1.8] - 2025-11-21
 
 ### Added
