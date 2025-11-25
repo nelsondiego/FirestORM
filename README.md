@@ -248,38 +248,55 @@ await User.batch(async (ctx) => {
 });
 ```
 
-### Subcollections - Complete CRUD (NEW!)
+### Subcollections - Complete CRUD with Type Safety (NEW!)
 
 ```typescript
+// Define subcollection model
+interface EquipmentData {
+  id: string;
+  name: string;
+  quantity: number;
+  status: 'active' | 'maintenance';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+class Equipment extends Model<EquipmentData> {
+  static collectionName = 'equipments';
+}
+
 const gym = await Gym.load('gym123');
 
-// CREATE - Add documents to subcollection
-const equipment = await gym.subcollection('equipments').create({
+// CREATE - Add documents (fully typed)
+const equipment = await gym.subcollection(Equipment).create({
   name: 'Treadmill',
   quantity: 5,
   status: 'active',
 });
 
-// READ - Query subcollections
-const equipments = await gym.subcollection('equipments').get();
+// READ - Query subcollections (returns EquipmentData[])
+const equipments = await gym.subcollection(Equipment).get();
 const activeEquipments = await gym
-  .subcollection('equipments')
+  .subcollection(Equipment)
   .where('status', '==', 'active')
   .get();
 
-// FIND - Get specific document
-const found = await gym.subcollection('equipments').find('equipment123');
+// FIND - Get specific document (returns EquipmentData | null)
+const found = await gym.subcollection(Equipment).find('equipment123');
 
-// UPDATE - Modify document
-await gym.subcollection('equipments').update('equipment123', {
+// UPDATE - Modify document (type-safe)
+await gym.subcollection(Equipment).update('equipment123', {
   quantity: 10,
 });
 
 // DELETE - Remove document
-await gym.subcollection('equipments').destroy('equipment123');
+await gym.subcollection(Equipment).destroy('equipment123');
 
 // DELETE ALL - Remove all documents
-await gym.subcollection('equipments').deleteAll();
+await gym.subcollection(Equipment).deleteAll();
+
+// String-based also works (backwards compatible)
+await gym.subcollection('equipments').get();
 ```
 
 ### Atomic Subcollection Deletion

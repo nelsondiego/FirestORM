@@ -508,15 +508,48 @@ export abstract class Model<T extends ModelAttributes = any> {
     this: ModelConstructor<M>,
     parentId: string,
     subcollectionName: string
-  ): QueryBuilder<InstanceType<ModelConstructor<M>>> {
+  ): QueryBuilder<InstanceType<ModelConstructor<M>>>;
+  /**
+   * Access a typed subcollection from a parent document
+   * @param parentId - ID of the parent document
+   * @param SubcollectionModel - Model class for the subcollection
+   * @returns QueryBuilder for the subcollection with proper typing
+   * @example
+   * // Get all equipment for a gym (typed)
+   * const equipments = await Gym.subcollection('gym123', Equipment).get();
+   */
+  static subcollection<M extends Model, SubM extends Model>(
+    this: ModelConstructor<M>,
+    parentId: string,
+    SubcollectionModel: ModelConstructor<SubM>
+  ): QueryBuilder<InstanceType<ModelConstructor<SubM>>>;
+  static subcollection<M extends Model, SubM extends Model>(
+    this: ModelConstructor<M>,
+    parentId: string,
+    subcollectionNameOrModel: string | ModelConstructor<SubM>
+  ):
+    | QueryBuilder<InstanceType<ModelConstructor<M>>>
+    | QueryBuilder<InstanceType<ModelConstructor<SubM>>> {
     const firestore = ModelFactory.getFirestore();
     const parentDocRef = doc(firestore, this.collectionName, parentId);
+
+    let subcollectionName: string;
+    let SubcollectionModel: ModelConstructor<any>;
+
+    // Check if it's a Model class
+    if (typeof subcollectionNameOrModel === 'function') {
+      SubcollectionModel = subcollectionNameOrModel;
+      subcollectionName = SubcollectionModel.collectionName;
+    } else {
+      // String-based subcollection (legacy)
+      subcollectionName = subcollectionNameOrModel;
+      SubcollectionModel = this;
+    }
+
     const subcollectionRef = collection(parentDocRef, subcollectionName);
 
     // Create a QueryBuilder with the subcollection reference
-    return new QueryBuilder(this, subcollectionRef) as QueryBuilder<
-      InstanceType<ModelConstructor<M>>
-    >;
+    return new QueryBuilder(SubcollectionModel, subcollectionRef) as any;
   }
 
   /**
@@ -948,14 +981,40 @@ export abstract class Model<T extends ModelAttributes = any> {
    * const gym = await Gym.load('gym123');
    * const equipments = await gym.subcollection('equipments').get();
    */
-  subcollection(subcollectionName: string): QueryBuilder<this> {
+  subcollection(subcollectionName: string): QueryBuilder<this>;
+  /**
+   * Access a typed subcollection from this model instance
+   * @param SubcollectionModel - Model class for the subcollection
+   * @returns QueryBuilder for the subcollection with proper typing
+   * @example
+   * const gym = await Gym.load('gym123');
+   * const equipments = await gym.subcollection(Equipment).get();
+   */
+  subcollection<SubM extends Model>(
+    SubcollectionModel: ModelConstructor<SubM>
+  ): QueryBuilder<InstanceType<ModelConstructor<SubM>>>;
+  subcollection<SubM extends Model>(
+    subcollectionNameOrModel: string | ModelConstructor<SubM>
+  ): QueryBuilder<this> | QueryBuilder<InstanceType<ModelConstructor<SubM>>> {
     if (!this.attributes.id) {
       throw new Error('Cannot access subcollection without document ID');
     }
 
+    // Check if it's a Model class
+    if (typeof subcollectionNameOrModel === 'function') {
+      const SubcollectionModel = subcollectionNameOrModel;
+      const subcollectionName = SubcollectionModel.collectionName;
+
+      return (this.constructor as any).subcollection(
+        this.attributes.id,
+        subcollectionName
+      ) as QueryBuilder<InstanceType<ModelConstructor<SubM>>>;
+    }
+
+    // String-based subcollection (legacy)
     return (this.constructor as any).subcollection(
       this.attributes.id,
-      subcollectionName
+      subcollectionNameOrModel
     ) as QueryBuilder<this>;
   }
 

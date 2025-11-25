@@ -14,26 +14,65 @@ users/{userId}/notifications/{notificationId}
 
 ## 📚 Accessing Subcollections
 
-### From Model Instance
+### Option 1: String-based (Simple)
 
 ```typescript
 // Load parent document
 const gym = await Gym.load('gym123');
 
 if (gym) {
-  // Access subcollection
+  // Access subcollection by name
   const equipments = await gym.subcollection('equipments').get();
   console.log('Equipment:', equipments);
 }
+
+// Static method
+const equipments = await Gym.subcollection('gym123', 'equipments').get();
 ```
 
-### Static Method
+### Option 2: Model-based (Typed) ⭐ Recommended
 
 ```typescript
-// Access subcollection without loading parent
-const equipments = await Gym.subcollection('gym123', 'equipments').get();
-console.log('Equipment:', equipments);
+// Define subcollection model
+interface EquipmentData {
+  id: string;
+  name: string;
+  quantity: number;
+  status: 'active' | 'maintenance' | 'broken';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+class Equipment extends Model<EquipmentData> {
+  static collectionName = 'equipments'; // Subcollection name
+}
+
+// Use typed subcollection
+const gym = await Gym.load('gym123');
+
+if (gym) {
+  // ✅ TypeScript knows equipments is EquipmentData[]
+  const equipments = await gym.subcollection(Equipment).get();
+
+  equipments.forEach((eq) => {
+    console.log(eq.name); // ✅ Full autocomplete
+    console.log(eq.quantity); // ✅ Type safety
+    console.log(eq.status); // ✅ IntelliSense
+  });
+}
+
+// Static method with typing
+const equipments = await Gym.subcollection('gym123', Equipment).get();
+// equipments is EquipmentData[]
 ```
+
+### Benefits of Typed Subcollections
+
+- ✅ **Full TypeScript support** - Autocomplete and type checking
+- ✅ **Reusable models** - Define once, use everywhere
+- ✅ **Type safety** - Catch errors at compile time
+- ✅ **Better IDE support** - IntelliSense for all properties
+- ✅ **Cleaner code** - No need for type annotations
 
 ## 🔍 Querying Subcollections
 

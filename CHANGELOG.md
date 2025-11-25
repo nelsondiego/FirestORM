@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [0.1.14] - 2025-11-25
+
+### Added
+
+- **Typed Subcollections**: Full TypeScript support for subcollection models
+  - Define subcollection models with their own interfaces
+  - `gym.subcollection(Equipment)` - Access typed subcollection
+  - `Gym.subcollection('gym123', Equipment)` - Static typed access
+  - Full type inference for all operations (create, find, update, delete, query)
+  - Example: `const equipments = await gym.subcollection(Equipment).get()` → `equipments` is `EquipmentData[]`
+  - Autocomplete and IntelliSense for all subcollection properties
+  - Backwards compatible with string-based subcollections
+  - Method overloading for both string and Model-based access
+
+### Documentation
+
+- Updated `docs/09-subcollections.md` with typed subcollection examples
+- Added `examples/typed-subcollections.ts` with comprehensive typed subcollection examples
+- Updated `README.md` with typed subcollection example
+
 ## [0.1.13] - 2025-11-25
 
 ### Added
