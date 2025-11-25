@@ -2,6 +2,52 @@
 
 ## [Unreleased]
 
+## [0.1.12] - 2025-11-25
+
+### Fixed
+
+- **TypeScript Type Inference**: Fixed return types for query builder methods
+  - `Model.query()` now returns `QueryBuilder<M>` instead of `any`
+  - `Model.where()` now returns `QueryBuilder<M>` instead of `any`
+  - `Model.subcollection()` now returns `QueryBuilder<M>` instead of `any`
+  - `model.subcollection()` now returns `QueryBuilder<M>` instead of `any`
+  - Now TypeScript correctly infers types without explicit annotations
+  - Example: `const users = await User.where(...).get()` → `users` is `UserData[]` ✅
+
+### Verified Type Safety
+
+All methods now have proper TypeScript type inference:
+
+**Static Methods (Model):**
+
+- ✅ `Model.find(id)` → `Promise<ModelData<M> | null>`
+- ✅ `Model.findOrFail(id)` → `Promise<ModelData<M>>`
+- ✅ `Model.load(id)` → `Promise<M | null>`
+- ✅ `Model.all()` → `Promise<ModelData<M>[]>`
+- ✅ `Model.create(data)` → `Promise<M>`
+- ✅ `Model.update(id, data)` → `Promise<void>`
+- ✅ `Model.destroy(id)` → `Promise<void>`
+- ✅ `Model.query()` → `QueryBuilder<M>`
+- ✅ `Model.where(...)` → `QueryBuilder<M>`
+- ✅ `Model.subcollection(...)` → `QueryBuilder<M>`
+
+**Query Builder Methods:**
+
+- ✅ `query.get()` → `Promise<ModelData<M>[]>`
+- ✅ `query.first()` → `Promise<ModelData<M> | null>`
+- ✅ `query.firstOrFail()` → `Promise<ModelData<M>>`
+- ✅ `query.find(id)` → `Promise<ModelData<M> | null>`
+- ✅ `query.count()` → `Promise<number>`
+- ✅ `query.exists()` → `Promise<boolean>`
+- ✅ `query.paginate()` → `Promise<PaginatedResult<ModelData<M>>>`
+- ✅ `query.listen(callback)` → `Unsubscribe`
+- ✅ `query.deleteAll()` → `Promise<number>`
+
+### Documentation
+
+- Added `examples/typescript-inference.ts` with comprehensive type inference examples
+- Demonstrates that no explicit type annotations are needed in v0.1.12+
+
 ## [0.1.11] - 2025-11-25
 
 ### Added

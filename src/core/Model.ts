@@ -470,8 +470,12 @@ export abstract class Model<T extends ModelAttributes = any> {
   /**
    * Create new query builder
    */
-  static query<M extends Model>(this: ModelConstructor<M>): any {
-    return new QueryBuilder(this);
+  static query<M extends Model>(
+    this: ModelConstructor<M>
+  ): QueryBuilder<InstanceType<ModelConstructor<M>>> {
+    return new QueryBuilder(this) as QueryBuilder<
+      InstanceType<ModelConstructor<M>>
+    >;
   }
 
   /**
@@ -482,7 +486,7 @@ export abstract class Model<T extends ModelAttributes = any> {
     field: string,
     operator: any,
     value: any
-  ): any {
+  ): QueryBuilder<InstanceType<ModelConstructor<M>>> {
     return this.query().where(field, operator, value);
   }
 
@@ -504,13 +508,15 @@ export abstract class Model<T extends ModelAttributes = any> {
     this: ModelConstructor<M>,
     parentId: string,
     subcollectionName: string
-  ): any {
+  ): QueryBuilder<InstanceType<ModelConstructor<M>>> {
     const firestore = ModelFactory.getFirestore();
     const parentDocRef = doc(firestore, this.collectionName, parentId);
     const subcollectionRef = collection(parentDocRef, subcollectionName);
 
     // Create a QueryBuilder with the subcollection reference
-    return new QueryBuilder(this, subcollectionRef);
+    return new QueryBuilder(this, subcollectionRef) as QueryBuilder<
+      InstanceType<ModelConstructor<M>>
+    >;
   }
 
   /**
@@ -942,7 +948,7 @@ export abstract class Model<T extends ModelAttributes = any> {
    * const gym = await Gym.load('gym123');
    * const equipments = await gym.subcollection('equipments').get();
    */
-  subcollection(subcollectionName: string): any {
+  subcollection(subcollectionName: string): QueryBuilder<this> {
     if (!this.attributes.id) {
       throw new Error('Cannot access subcollection without document ID');
     }
@@ -950,7 +956,7 @@ export abstract class Model<T extends ModelAttributes = any> {
     return (this.constructor as any).subcollection(
       this.attributes.id,
       subcollectionName
-    );
+    ) as QueryBuilder<this>;
   }
 
   /**
