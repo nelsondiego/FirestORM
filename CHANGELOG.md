@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [0.1.10] - 2025-11-25
+
+### Added
+
+- **Static Update Method**: Update documents by ID without loading
+  - `Model.update(id, data)` - Update document directly by ID
+  - Faster than loading and updating for simple changes
+  - Automatically adds `updatedAt` timestamp
+  - Example: `await User.update('user123', { name: 'New Name', age: 30 })`
+  - Use when you don't need validation, hooks, or the model instance
+  - For complex updates with validation, use `model.update(data)` instead
+
+### Documentation
+
+- Updated `docs/04-crud-operations.md` with static update method examples
+- Added comparison tables for update and delete methods
+- Updated `docs/08-best-practices.md` with best practices for static methods
+- Updated `examples/basic-usage.ts` with new update patterns
+- Added quick reference guide for CRUD operations
+
 ## [0.1.9] - 2025-11-24
 
 ### Added

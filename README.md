@@ -154,14 +154,21 @@ const user = await User.create({
 // Read
 const user = await User.find('id'); // Returns JSON
 
-// Update
+// Update by ID (fastest)
+await User.update('id', { name: 'Jane' });
+
+// Or load and update (for hooks/validation)
 const user = await User.load('id'); // Returns model instance
 await user?.update({ name: 'Jane' });
 
-// Delete
-await user.delete();
-// or
+// Delete by ID (no need to load)
 await User.destroy('id');
+
+// Or load and delete (for soft deletes or hooks)
+await user.delete();
+
+// Batch delete all matching documents
+await User.where('status', '==', 'inactive').deleteAll();
 ```
 
 ### Pagination

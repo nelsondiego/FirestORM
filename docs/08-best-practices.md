@@ -83,7 +83,10 @@ const allUsers = await User.all();
 ### Updating Records
 
 ```typescript
-// ✅ Load and update
+// ✅ Update by ID (fastest, recommended for simple updates)
+await User.update('user123', { name: 'New Name' });
+
+// ✅ Load and update (for validation or hooks)
 const user = await User.load('user123');
 await user?.update({ name: 'New Name' });
 
@@ -97,26 +100,39 @@ if (user) {
   await user.update({ name: 'New Name' });
 }
 
-// ❌ Bad - Not checking if user exists
+// ❌ Bad - Loading when not needed
 const user = await User.load('user123');
-await user.update({ name: 'New Name' }); // Error if user is null
+await user?.update({ name: 'New Name' }); // Just use User.update() instead
+
+// ✅ Good - Use static update for simple changes
+await User.update('user123', { name: 'New Name' });
 ```
 
 ### Deleting Records
 
 ```typescript
-// ✅ Load and delete
+// ✅ Delete by ID (fastest, no need to load)
+await User.destroy('user123');
+
+// ✅ Load and delete (for soft deletes or hooks)
 const user = await User.load('user123');
 await user?.delete();
 
-// ✅ Direct delete by ID
-await User.destroy('user123');
+// ✅ Batch delete (most efficient for multiple documents)
+await User.where('status', '==', 'inactive').deleteAll();
 
-// ✅ Bulk delete
+// ✅ Manual loop delete (when you need control)
 const inactiveUsers = await User.where('status', '==', 'inactive').get();
 for (const userData of inactiveUsers) {
   await User.destroy(userData.id);
 }
+
+// ❌ Bad - Loading when not needed
+const user = await User.load('user123');
+await user?.delete(); // Just use destroy() instead
+
+// ✅ Good - Use destroy() for simple deletes
+await User.destroy('user123');
 ```
 
 ## 🔄 Transactions

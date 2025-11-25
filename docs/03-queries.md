@@ -171,6 +171,24 @@ const emailExists = await User.where(
 ).exists();
 ```
 
+## 🗑️ Batch Delete
+
+### Delete All Matching Documents
+
+```typescript
+// Delete all inactive users
+const deletedCount = await User.where('status', '==', 'inactive').deleteAll();
+console.log(`Deleted ${deletedCount} users`);
+
+// Delete all expired sessions
+await Session.where('expiresAt', '<', new Date()).deleteAll();
+
+// Delete all documents in a query
+await Product.where('stock', '==', 0)
+  .where('discontinued', '==', true)
+  .deleteAll();
+```
+
 ## 🎨 Query Scopes
 
 ### Defining Scopes
@@ -377,6 +395,8 @@ const newUsers = await User.where('createdAt', '>=', startOfMonth)
 4. **Order before limit** - Order results before limiting
 5. **Use whereIn sparingly** - Limited to 10 items in Firestore
 6. **Avoid inequality on multiple fields** - Firestore limitation
+7. **Use `deleteAll()` for batch deletes** - More efficient than looping
+8. **Use `destroy(id)` for single deletes** - No need to load the model first
 
 ## ⚠️ Firestore Limitations
 

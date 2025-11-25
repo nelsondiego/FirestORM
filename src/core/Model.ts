@@ -448,6 +448,29 @@ export abstract class Model<T extends ModelAttributes = any> {
   }
 
   /**
+   * Update by ID without loading the model first
+   * @param id - Document ID to update
+   * @param data - Partial data to update
+   * @example
+   * await User.update('user123', { name: 'New Name', age: 30 });
+   */
+  static async update<M extends Model>(
+    this: ModelConstructor<M>,
+    id: string,
+    data: Partial<any>
+  ): Promise<void> {
+    const collectionRef = this.getCollectionRef();
+    const docRef = doc(collectionRef, id);
+
+    // Prepare update data with timestamp
+    const updateData: any = { ...data };
+    delete updateData.id; // Remove id if present
+    updateData.updatedAt = serverTimestamp();
+
+    await updateDoc(docRef, updateData);
+  }
+
+  /**
    * Delete by ID
    */
   static async destroy<M extends Model>(

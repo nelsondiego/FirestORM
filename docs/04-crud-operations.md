@@ -99,10 +99,28 @@ const admin = await User.where('role', '==', 'admin').firstOrFail();
 
 ## ✏️ Update
 
+NDFirestORM provides two ways to update documents:
+
+1. **`Model.update(id, data)`** - Update by ID (fastest, no loading needed)
+2. **`model.update(data)`** - Update model instance (for complex logic or hooks)
+
+### Update by ID (Recommended for Simple Updates)
+
+```typescript
+// Update directly by ID without loading the model first
+await User.update('user123', {
+  name: 'Jane Doe',
+  age: 26,
+});
+
+// This is the fastest way to update a document
+// Automatically adds updatedAt timestamp
+```
+
 ### Update with Model Instance
 
 ```typescript
-// Load model instance
+// Load model instance first
 const user = await User.load('user123');
 
 if (user) {
@@ -124,13 +142,22 @@ if (user) {
   });
   await user.save();
 }
+
+// Use instance methods when:
+// - You need to check isDirty()
+// - You have custom update hooks
+// - You need complex validation logic
+// - You already have the model loaded
 ```
 
 ### Update Single Field
 
 ```typescript
-const user = await User.load('user123');
+// Option 1: Update by ID (faster)
+await User.update('user123', { status: 'inactive' });
 
+// Option 2: Load and update (if you need the instance)
+const user = await User.load('user123');
 if (user) {
   await user.update({ status: 'inactive' });
 }
@@ -139,8 +166,16 @@ if (user) {
 ### Update Multiple Fields
 
 ```typescript
-const user = await User.load('user123');
+// Option 1: Update by ID (faster)
+await User.update('user123', {
+  name: 'New Name',
+  email: 'newemail@example.com',
+  age: 30,
+  status: 'active',
+});
 
+// Option 2: Load and update (if you need the instance)
+const user = await User.load('user123');
 if (user) {
   await user.update({
     name: 'New Name',
@@ -150,6 +185,21 @@ if (user) {
   });
 }
 ```
+
+### Update Methods Comparison
+
+| Method                   | Use Case                              | Speed      | Returns Instance | Hooks |
+| ------------------------ | ------------------------------------- | ---------- | ---------------- | ----- |
+| `Model.update(id, data)` | Simple update, no hooks needed        | ⚡ Fastest | ❌               | ❌    |
+| `model.update(data)`     | Update with hooks or validation       | 🐢 Slower  | ✅               | ✅    |
+| `model.set() + save()`   | Multiple changes with isDirty() check | 🐢 Slower  | ✅               | ✅    |
+| `model.fill() + save()`  | Bulk changes with isDirty() check     | 🐢 Slower  | ✅               | ✅    |
+
+**Recommendation:**
+
+- Simple update → Use `Model.update(id, data)`
+- Update with validation → Use `model.update(data)`
+- Multiple changes with checks → Use `model.set()` + `save()`
 
 ### Check if Modified
 
@@ -179,10 +229,26 @@ console.log(user.get('name')); // Original name from database
 
 ## 🗑️ Delete
 
+NDFirestORM provides three ways to delete documents:
+
+1. **`destroy(id)`** - Delete by ID (fastest, no loading needed)
+2. **`delete()`** - Delete model instance (for soft deletes or hooks)
+3. **`deleteAll()`** - Batch delete all matching documents
+
+### Delete by ID (Recommended for Simple Deletes)
+
+```typescript
+// Delete directly by ID without loading the model first
+await User.destroy('user123');
+
+// This is the fastest way to delete a single document
+// Use when you don't need soft deletes or custom hooks
+```
+
 ### Delete Model Instance
 
 ```typescript
-// Load model instance
+// Load model instance first
 const user = await User.load('user123');
 
 if (user) {
@@ -193,27 +259,62 @@ if (user) {
 // Or use optional chaining
 const user = await User.load('user123');
 await user?.delete();
+
+// Use this method when:
+// - You need soft deletes
+// - You have custom delete hooks
+// - You already have the model loaded
 ```
 
-### Delete by ID
+### Batch Delete (Recommended for Multiple Documents)
 
 ```typescript
-// Delete directly by ID
-await User.destroy('user123');
+// Delete all matching documents in one operation
+await User.where('status', '==', 'inactive').deleteAll();
+
+// This is the most efficient way to delete multiple documents
+// Automatically handles batching (500 docs per batch)
+console.log(`Deleted ${count} users`);
 ```
 
-### Delete Multiple
+### Delete Multiple (Manual Loop)
 
 ```typescript
-// Get users to delete (as JSON)
+// Option 1: Delete by ID (faster, no need to load)
 const inactiveUsers = await User.where('status', '==', 'inactive').get();
+for (const userData of inactiveUsers) {
+  await User.destroy(userData.id);
+}
 
-// Delete each one by loading instance
+// Option 2: Load and delete (if you need to run hooks or soft delete)
+const inactiveUsers = await User.where('status', '==', 'inactive').get();
 for (const userData of inactiveUsers) {
   const user = await User.load(userData.id);
   await user?.delete();
 }
+
+// Option 3: Batch delete (recommended - see above)
+await User.where('status', '==', 'inactive').deleteAll();
 ```
+
+### Delete Methods Comparison
+
+| Method                  | Use Case                               | Speed      | Soft Delete | Hooks |
+| ----------------------- | -------------------------------------- | ---------- | ----------- | ----- |
+| `destroy(id)`           | Single document, no hooks needed       | ⚡ Fastest | ❌          | ❌    |
+| `model.delete()`        | Single document with hooks/soft delete | 🐢 Slower  | ✅          | ✅    |
+| `query.deleteAll()`     | Multiple documents, batch operation    | ⚡ Fast    | ❌          | ❌    |
+| Manual loop + destroy() | Multiple documents with control        | 🐢 Slowest | ❌          | ❌    |
+| Manual loop + delete()  | Multiple documents with hooks          | 🐢 Slowest | ✅          | ✅    |
+
+**Recommendation:**
+
+- Single delete without hooks → Use `destroy(id)`
+- Single delete with hooks → Use `model.delete()`
+- Multiple deletes → Use `query.deleteAll()`
+- Multiple deletes with hooks → Use manual loop with `model.delete()`
+
+````
 
 ### Soft Delete (if enabled)
 
@@ -230,7 +331,7 @@ await user.delete(); // Sets deletedAt instead of deleting
 
 // Force delete (permanent)
 await user.forceDelete(); // Actually deletes the document
-```
+````
 
 ## 🔄 Complete CRUD Examples
 
@@ -271,10 +372,24 @@ async function getUsersByStatus(status: string) {
 
 // UPDATE
 async function updateUser(id: string, data: Partial<UserData>) {
+  // Option 1: Update by ID (simpler and faster)
+  await User.update(id, data);
+
+  // Return updated data
+  return User.findOrFail(id);
+}
+
+// Or if you need the instance for validation:
+async function updateUserWithValidation(id: string, data: Partial<UserData>) {
   const user = await User.load(id);
 
   if (!user) {
     throw new Error('User not found');
+  }
+
+  // Custom validation
+  if (data.email && !isValidEmail(data.email)) {
+    throw new Error('Invalid email');
   }
 
   await user.update(data);
@@ -282,18 +397,20 @@ async function updateUser(id: string, data: Partial<UserData>) {
 }
 
 async function verifyUserEmail(id: string) {
-  const user = await User.load(id);
-
-  if (!user) {
-    throw new Error('User not found');
-  }
-
-  await user.update({ emailVerified: true });
-  return user.toJSON();
+  // Simple update by ID
+  await User.update(id, { emailVerified: true });
+  return User.findOrFail(id);
 }
 
 // DELETE
 async function deleteUser(id: string) {
+  // Option 1: Delete by ID (simpler)
+  await User.destroy(id);
+  return { success: true };
+}
+
+// Or if you need to check if it exists first:
+async function deleteUserSafe(id: string) {
   const user = await User.load(id);
 
   if (!user) {
@@ -305,14 +422,9 @@ async function deleteUser(id: string) {
 }
 
 async function deactivateUser(id: string) {
-  const user = await User.load(id);
-
-  if (!user) {
-    throw new Error('User not found');
-  }
-
-  await user.update({ status: 'inactive' });
-  return user.toJSON();
+  // Simple update by ID
+  await User.update(id, { status: 'inactive' });
+  return User.findOrFail(id);
 }
 ```
 
@@ -381,6 +493,7 @@ async function publishProduct(id: string) {
 
 // DELETE
 async function deleteProduct(id: string) {
+  // Delete directly by ID
   await Product.destroy(id);
   return { success: true };
 }
@@ -496,11 +609,23 @@ async function updateUser(id: string, data: Partial<UserData>) {
 
 ## 💡 Tips
 
-1. **Use Model instances for updates** - They have helper methods
-2. **Use JSON for reads** - Faster and lighter
-3. **Check isDirty()** - Before saving to avoid unnecessary writes
-4. **Use refresh()** - To get latest data from database
-5. **Batch operations** - Use Promise.all() for multiple operations
+1. **Use static methods for simple operations** - `Model.update(id, data)` and `Model.destroy(id)` are faster
+2. **Use model instances for complex logic** - When you need validation, hooks, or `isDirty()` checks
+3. **Use JSON for reads** - Faster and lighter with `find()` and `get()`
+4. **Use `deleteAll()` for batch deletes** - More efficient than looping
+5. **Check isDirty()** - Before saving to avoid unnecessary writes
+6. **Use refresh()** - To get latest data from database
+7. **Batch operations** - Use Promise.all() for multiple operations
+
+### Quick Reference
+
+| Operation        | Simple (No Hooks)        | Complex (With Hooks/Validation)   |
+| ---------------- | ------------------------ | --------------------------------- |
+| **Create**       | `Model.create(data)`     | `Model.create(data)` + validation |
+| **Read**         | `Model.find(id)`         | `Model.load(id)`                  |
+| **Update**       | `Model.update(id, data)` | `model.update(data)`              |
+| **Delete**       | `Model.destroy(id)`      | `model.delete()`                  |
+| **Batch Delete** | `query.deleteAll()`      | Loop with `model.delete()`        |
 
 ## 🔗 Next
 

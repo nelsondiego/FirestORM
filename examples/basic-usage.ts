@@ -77,16 +77,23 @@ async function examples() {
   console.log('Total users:', paginated.meta.total);
   console.log('Has more pages:', paginated.meta.hasMorePages
 
-  // Update user (load model instance)
+  // Update user by ID (fastest way)
+  await User.update(user.id!, { name: 'Jane Doe', age: 26 });
+  console.log('Updated user by ID');
+
+  // Or load and update (for validation/hooks)
   const userModel = await User.load(user.id!);
   if (userModel) {
-    await userModel.update({ name: 'Jane Doe' });
-    console.log('Updated user');
+    await userModel.update({ status: 'inactive' });
+    console.log('Updated user with model instance');
   }
 
-  // Delete user
-  await userModel?.delete();
-  console.log('Deleted user');
+  // Delete user by ID (fastest way)
+  await User.destroy(user.id!);
+  console.log('Deleted user by ID');
+
+  // Or load and delete (for soft deletes/hooks)
+  // await userModel?.delete();
 }
 
 // Run examples
