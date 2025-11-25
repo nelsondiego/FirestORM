@@ -380,6 +380,14 @@ import { User } from 'ndfirestorm';
 
 // Update multiple users at once
 await User.batch(async (ctx) => {
+  // Option 1: Update by ID (faster, no loading needed)
+  ctx.update(User, 'user1', { status: 'active' });
+  ctx.update(User, 'user2', { status: 'active' });
+  ctx.update(User, 'user3', { status: 'active' });
+});
+
+// Or with model instances (if you need validation)
+await User.batch(async (ctx) => {
   const user1 = await User.load('user1');
   const user2 = await User.load('user2');
   const user3 = await User.load('user3');
@@ -409,6 +417,14 @@ await User.batch(async (ctx) => {
 // Delete inactive users
 const inactiveUsers = await User.where('status', '==', 'inactive').get();
 
+// Option 1: Delete by ID (faster, recommended)
+await User.batch(async (ctx) => {
+  for (const userData of inactiveUsers) {
+    ctx.delete(User, userData.id);
+  }
+});
+
+// Option 2: Load and delete (if you need hooks)
 await User.batch(async (ctx) => {
   for (const userData of inactiveUsers) {
     const user = await User.load(userData.id);
@@ -417,6 +433,9 @@ await User.batch(async (ctx) => {
     }
   }
 });
+
+// Option 3: Use deleteAll() for simplicity
+await User.where('status', '==', 'inactive').deleteAll();
 
 console.log(`Deleted ${inactiveUsers.length} inactive users`);
 ```
@@ -642,9 +661,12 @@ await Gym.transaction(async (ctx) => {
 ### Batch Operations
 
 1. **Limit to 500 operations** - Firestore's hard limit
-2. **Use for bulk operations** - More efficient than individual writes
+2. **Use for bulk operations** - Better network performance than individual writes
 3. **Split large batches** - Process in chunks if > 500 operations
 4. **No reads in batch** - Load models before the batch
+5. **⚠️ Same cost as individual operations** - Each operation in batch is billed separately
+
+**Important**: Batch operations do NOT reduce Firestore costs. A batch with 100 writes = 100 billable write operations. The benefit is better performance (single network request) and atomicity (all succeed or all fail), not reduced costs.
 
 ### Real-time Subscriptions
 
@@ -659,6 +681,75 @@ await Gym.transaction(async (ctx) => {
 2. **Use for predictable IDs** - When you need to reference before creation
 3. **Validate ID format** - Ensure IDs meet Firestore requirements
 4. **Avoid conflicts** - Make sure custom IDs are unique
+
+## 💰 Cost Optimization
+
+### Understanding Firestore Billing
+
+Firestore charges per operation:
+
+- **Read**: Each document read (including queries)
+- **Write**: Each document create/update
+- **Delete**: Each document delete
+
+### Batch vs Individual Operations
+
+```typescript
+// ❌ Common misconception: "Batch reduces costs"
+// Reality: Same cost, better performance
+
+// Individual operations (100 writes)
+for (const id of userIds) {
+  await User.update(id, { status: 'active' }); // 100 write operations
+}
+
+// Batch operations (still 100 writes)
+await User.batch(async (ctx) => {
+  for (const id of userIds) {
+    const user = await User.load(id);
+    if (user) ctx.update(user, { status: 'active' }); // 100 write operations
+  }
+});
+
+// Both cost the same: 100 write operations
+// Batch is faster due to single network request
+```
+
+### Cost-Effective Patterns
+
+```typescript
+// ✅ Use static methods to avoid unnecessary reads
+// Bad: Load + Update (2 operations per document)
+const user = await User.load('user123'); // 1 read
+await user?.update({ status: 'active' }); // 1 write
+// Total: 2 operations
+
+// Good: Update directly (1 operation per document)
+await User.update('user123', { status: 'active' }); // 1 write only
+// Total: 1 operation
+
+// ✅ Use deleteAll() for batch deletes
+// Bad: Query + Loop (N reads + N deletes)
+const users = await User.where('status', '==', 'inactive').get(); // N reads
+for (const user of users) {
+  await User.destroy(user.id); // N deletes
+}
+// Total: 2N operations
+
+// Good: deleteAll() (N reads + N deletes, but optimized)
+await User.where('status', '==', 'inactive').deleteAll(); // N reads + N deletes
+// Total: 2N operations (but faster execution)
+```
+
+### When to Use Each Method
+
+| Method                   | Operations          | Use When                            |
+| ------------------------ | ------------------- | ----------------------------------- |
+| `Model.update(id, data)` | 1 write             | Simple update, no validation needed |
+| `model.update(data)`     | 1 read + 1 write    | Need validation or current values   |
+| `Model.destroy(id)`      | 1 delete            | Simple delete, no hooks             |
+| `model.delete()`         | 1 read + 1 delete   | Need soft delete or hooks           |
+| `query.deleteAll()`      | N reads + N deletes | Batch delete matching query         |
 
 ## 🚫 What You DON'T Need
 

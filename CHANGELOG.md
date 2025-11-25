@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [0.1.11] - 2025-11-25
+
+### Added
+
+- **ID-based Batch Operations**: Update and delete by ID in batch/transaction contexts
+  - `ctx.update(ModelClass, id, data)` - Update by ID in batch/transaction
+  - `ctx.delete(ModelClass, id)` - Delete by ID in batch/transaction
+  - Reduces operations: No need to load documents first (saves read operations)
+  - Example: `ctx.update(User, 'user123', { status: 'active' })`
+  - Example: `ctx.delete(User, 'user123')`
+  - Works in both `Model.batch()` and `Model.transaction()`
+  - **Cost optimization**: 1 write instead of 1 read + 1 write
+  - Saves 50% of operations when updating/deleting multiple documents
+
+### Documentation
+
+- Updated `docs/08-best-practices.md` with ID-based batch operation examples
+- Updated `docs/07-realtime-transactions.md` with ID-based batch/transaction examples
+- Added `examples/batch-by-id.ts` with comprehensive cost optimization examples
+- Documented how ID-based operations save read operations and reduce costs
+
 ## [0.1.10] - 2025-11-25
 
 ### Added
@@ -21,6 +42,9 @@
 - Updated `docs/08-best-practices.md` with best practices for static methods
 - Updated `examples/basic-usage.ts` with new update patterns
 - Added quick reference guide for CRUD operations
+- **Added cost optimization section** in `docs/07-realtime-transactions.md`
+- Clarified that batch operations do NOT reduce Firestore costs (each operation is billed separately)
+- Added cost-effective patterns and operation count comparisons
 
 ## [0.1.9] - 2025-11-24
 

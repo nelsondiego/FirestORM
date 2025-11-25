@@ -241,6 +241,37 @@ await User.batch(async (ctx) => {
 });
 ```
 
+### Important: Batch Operations and Billing
+
+**⚠️ Batch operations do NOT reduce Firestore costs:**
+
+- Each operation in a batch counts as a separate billable operation
+- 100 writes in a batch = 100 write operations charged
+- **Benefits of batch:**
+  - ✅ Better network performance (single HTTP request)
+  - ✅ Atomic execution (all succeed or all fail)
+  - ✅ Faster than sequential operations
+  - ❌ Does NOT reduce costs
+
+```typescript
+// These cost the same in terms of Firestore operations:
+
+// Option 1: Sequential (slower, same cost)
+for (const id of userIds) {
+  await User.update(id, { status: 'active' }); // 100 operations
+}
+
+// Option 2: Batch (faster, same cost)
+await User.batch(async (ctx) => {
+  for (const id of userIds) {
+    const user = await User.load(id);
+    if (user) ctx.update(user, { status: 'active' }); // Still 100 operations
+  }
+});
+
+// Both charge for 100 write operations
+```
+
 ### Batch Best Practices
 
 ```typescript
@@ -253,14 +284,37 @@ async function bulkUpdate(userIds: string[]) {
 
     await User.batch(async (ctx) => {
       for (const id of batchIds) {
-        const user = await User.load(id);
-        if (user) {
-          ctx.update(user, { status: 'active' });
-        }
+        // Update by ID (no need to load)
+        ctx.update(User, id, { status: 'active' });
       }
     });
   }
 }
+
+// ⚠️ Cost consideration: Use ID-based methods when possible
+// These have the same cost but different performance:
+
+// ❌ Slower: Load each document (2 operations per user: 1 read + 1 write)
+await User.batch(async (ctx) => {
+  for (const id of userIds) {
+    const user = await User.load(id); // Read operation
+    if (user) ctx.update(user, { status: 'active' }); // Write operation
+  }
+});
+
+// ✅ Faster: Update by ID (1 operation per user: 1 write only)
+await User.batch(async (ctx) => {
+  for (const id of userIds) {
+    ctx.update(User, id, { status: 'active' }); // Write operation only
+  }
+});
+
+// ✅ Also good: Delete by ID
+await User.batch(async (ctx) => {
+  for (const id of userIds) {
+    ctx.delete(User, id); // Delete operation only
+  }
+});
 
 // ✅ Load models before batch
 const users = await User.where('status', '==', 'inactive').get();

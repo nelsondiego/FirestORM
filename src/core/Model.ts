@@ -115,8 +115,44 @@ export class TransactionContext {
 
   /**
    * Update a document in the transaction
+   * @overload Update by model instance
    */
-  async update<M extends Model>(model: M, data: Partial<any>): Promise<M> {
+  async update<M extends Model>(model: M, data: Partial<any>): Promise<M>;
+  /**
+   * Update a document in the transaction
+   * @overload Update by ID
+   */
+  async update<M extends Model>(
+    ModelClass: ModelConstructor<M>,
+    id: string,
+    data: Partial<any>
+  ): Promise<void>;
+  async update<M extends Model>(
+    modelOrClass: M | ModelConstructor<M>,
+    dataOrId: Partial<any> | string,
+    maybeData?: Partial<any>
+  ): Promise<M | void> {
+    // Check if it's the ID-based signature
+    if (typeof dataOrId === 'string' && maybeData !== undefined) {
+      // Update by ID: update(ModelClass, id, data)
+      const ModelClass = modelOrClass as ModelConstructor<M>;
+      const id = dataOrId;
+      const data = maybeData;
+
+      this.operations.push({
+        type: 'update',
+        model: null,
+        data,
+        customId: id,
+        parentModel: ModelClass,
+      });
+      return;
+    }
+
+    // Update by model instance: update(model, data)
+    const model = modelOrClass as M;
+    const data = dataOrId as Partial<any>;
+
     model.fill(data);
 
     this.operations.push({
@@ -130,8 +166,39 @@ export class TransactionContext {
 
   /**
    * Delete a document in the transaction
+   * @overload Delete by model instance
    */
-  async delete<M extends Model>(model: M): Promise<void> {
+  async delete<M extends Model>(model: M): Promise<void>;
+  /**
+   * Delete a document in the transaction
+   * @overload Delete by ID
+   */
+  async delete<M extends Model>(
+    ModelClass: ModelConstructor<M>,
+    id: string
+  ): Promise<void>;
+  async delete<M extends Model>(
+    modelOrClass: M | ModelConstructor<M>,
+    maybeId?: string
+  ): Promise<void> {
+    // Check if it's the ID-based signature
+    if (maybeId !== undefined) {
+      // Delete by ID: delete(ModelClass, id)
+      const ModelClass = modelOrClass as ModelConstructor<M>;
+      const id = maybeId;
+
+      this.operations.push({
+        type: 'delete',
+        model: null,
+        customId: id,
+        parentModel: ModelClass,
+      });
+      return;
+    }
+
+    // Delete by model instance: delete(model)
+    const model = modelOrClass as M;
+
     this.operations.push({
       type: 'delete',
       model,
@@ -232,6 +299,8 @@ export class BatchContext {
     model: any;
     data?: any;
     customId?: string;
+    ModelClass?: any;
+    id?: string;
   }> = [];
 
   /**
@@ -259,8 +328,44 @@ export class BatchContext {
 
   /**
    * Update a document in the batch
+   * @overload Update by model instance
    */
-  update<M extends Model>(model: M, data: Partial<any>): M {
+  update<M extends Model>(model: M, data: Partial<any>): M;
+  /**
+   * Update a document in the batch
+   * @overload Update by ID
+   */
+  update<M extends Model>(
+    ModelClass: ModelConstructor<M>,
+    id: string,
+    data: Partial<any>
+  ): void;
+  update<M extends Model>(
+    modelOrClass: M | ModelConstructor<M>,
+    dataOrId: Partial<any> | string,
+    maybeData?: Partial<any>
+  ): M | void {
+    // Check if it's the ID-based signature
+    if (typeof dataOrId === 'string' && maybeData !== undefined) {
+      // Update by ID: update(ModelClass, id, data)
+      const ModelClass = modelOrClass as ModelConstructor<M>;
+      const id = dataOrId;
+      const data = maybeData;
+
+      this.operations.push({
+        type: 'update',
+        ModelClass,
+        id,
+        data,
+        model: null,
+      });
+      return;
+    }
+
+    // Update by model instance: update(model, data)
+    const model = modelOrClass as M;
+    const data = dataOrId as Partial<any>;
+
     model.fill(data);
 
     this.operations.push({
@@ -274,8 +379,36 @@ export class BatchContext {
 
   /**
    * Delete a document in the batch
+   * @overload Delete by model instance
    */
-  delete<M extends Model>(model: M): void {
+  delete<M extends Model>(model: M): void;
+  /**
+   * Delete a document in the batch
+   * @overload Delete by ID
+   */
+  delete<M extends Model>(ModelClass: ModelConstructor<M>, id: string): void;
+  delete<M extends Model>(
+    modelOrClass: M | ModelConstructor<M>,
+    maybeId?: string
+  ): void {
+    // Check if it's the ID-based signature
+    if (maybeId !== undefined) {
+      // Delete by ID: delete(ModelClass, id)
+      const ModelClass = modelOrClass as ModelConstructor<M>;
+      const id = maybeId;
+
+      this.operations.push({
+        type: 'delete',
+        ModelClass,
+        id,
+        model: null,
+      });
+      return;
+    }
+
+    // Delete by model instance: delete(model)
+    const model = modelOrClass as M;
+
     this.operations.push({
       type: 'delete',
       model,
@@ -570,26 +703,42 @@ export abstract class Model<T extends ModelAttributes = any> {
             );
             transaction.delete(subcollectionDocRef);
           }
-        } else {
+        } else if (op.type === 'create') {
           const model = op.model;
           const collectionRef = (model.constructor as any).getCollectionRef();
+          const dataToSave = model.prepareDataForSave();
 
-          if (op.type === 'create') {
-            const dataToSave = model.prepareDataForSave();
+          if (model.attributes.id) {
+            const docRef = doc(collectionRef, model.attributes.id);
+            transaction.set(docRef, dataToSave);
+          } else {
+            // Generate ID for transaction
+            const docRef = doc(collectionRef);
+            model.attributes.id = docRef.id;
+            transaction.set(docRef, dataToSave);
+          }
 
-            if (model.attributes.id) {
-              const docRef = doc(collectionRef, model.attributes.id);
-              transaction.set(docRef, dataToSave);
-            } else {
-              // Generate ID for transaction
-              const docRef = doc(collectionRef);
-              model.attributes.id = docRef.id;
-              transaction.set(docRef, dataToSave);
-            }
+          model.exists = true;
+          model.original = { ...model.attributes };
+        } else if (op.type === 'update') {
+          // Check if it's ID-based update
+          if (op.parentModel && op.customId) {
+            // Update by ID
+            const ModelClass = op.parentModel as ModelConstructor<any>;
+            const collectionRef = ModelClass.getCollectionRef();
+            const docRef = doc(collectionRef, op.customId);
 
-            model.exists = true;
-            model.original = { ...model.attributes };
-          } else if (op.type === 'update') {
+            // Prepare update data with timestamp
+            const updateData: any = { ...op.data };
+            delete updateData.id;
+            updateData.updatedAt = serverTimestamp();
+
+            transaction.update(docRef, updateData);
+          } else {
+            // Update by model instance
+            const model = op.model;
+            const collectionRef = (model.constructor as any).getCollectionRef();
+
             if (!model.attributes.id) {
               throw new Error('Cannot update model without ID');
             }
@@ -598,7 +747,20 @@ export abstract class Model<T extends ModelAttributes = any> {
             const dataToUpdate = model.prepareDataForSave(true);
             transaction.update(docRef, dataToUpdate);
             model.original = { ...model.attributes };
-          } else if (op.type === 'delete') {
+          }
+        } else if (op.type === 'delete') {
+          // Check if it's ID-based delete
+          if (op.parentModel && op.customId) {
+            // Delete by ID
+            const ModelClass = op.parentModel as ModelConstructor<any>;
+            const collectionRef = ModelClass.getCollectionRef();
+            const docRef = doc(collectionRef, op.customId);
+            transaction.delete(docRef);
+          } else {
+            // Delete by model instance
+            const model = op.model;
+            const collectionRef = (model.constructor as any).getCollectionRef();
+
             if (!model.attributes.id) {
               throw new Error('Cannot delete model without ID');
             }
@@ -623,7 +785,11 @@ export abstract class Model<T extends ModelAttributes = any> {
    *   ctx.create(User, { name: 'John', email: 'john@example.com' });
    *   ctx.create(User, { name: 'Jane', email: 'jane@example.com' });
    *
-   *   const user = await User.load('user1');
+   *   // Update by ID (no need to load)
+   *   ctx.update(User, 'user1', { status: 'active' });
+   *
+   *   // Or update with model instance
+   *   const user = await User.load('user2');
    *   if (user) {
    *     ctx.update(user, { status: 'active' });
    *   }
@@ -641,10 +807,9 @@ export abstract class Model<T extends ModelAttributes = any> {
     const operations = ctx.getOperations();
 
     for (const op of operations) {
-      const model = op.model;
-      const collectionRef = (model.constructor as any).getCollectionRef();
-
       if (op.type === 'create') {
+        const model = op.model;
+        const collectionRef = (model.constructor as any).getCollectionRef();
         const dataToSave = model.prepareDataForSave();
 
         if (model.attributes.id) {
@@ -660,22 +825,52 @@ export abstract class Model<T extends ModelAttributes = any> {
         model.exists = true;
         model.original = { ...model.attributes };
       } else if (op.type === 'update') {
-        if (!model.attributes.id) {
-          throw new Error('Cannot update model without ID');
-        }
+        // Check if it's ID-based update
+        if (op.ModelClass && op.id) {
+          // Update by ID
+          const collectionRef = op.ModelClass.getCollectionRef();
+          const docRef = doc(collectionRef, op.id);
 
-        const docRef = doc(collectionRef, model.attributes.id);
-        const dataToUpdate = model.prepareDataForSave(true);
-        batch.update(docRef, dataToUpdate);
-        model.original = { ...model.attributes };
+          // Prepare update data with timestamp
+          const updateData: any = { ...op.data };
+          delete updateData.id;
+          updateData.updatedAt = serverTimestamp();
+
+          batch.update(docRef, updateData);
+        } else {
+          // Update by model instance
+          const model = op.model;
+          const collectionRef = (model.constructor as any).getCollectionRef();
+
+          if (!model.attributes.id) {
+            throw new Error('Cannot update model without ID');
+          }
+
+          const docRef = doc(collectionRef, model.attributes.id);
+          const dataToUpdate = model.prepareDataForSave(true);
+          batch.update(docRef, dataToUpdate);
+          model.original = { ...model.attributes };
+        }
       } else if (op.type === 'delete') {
-        if (!model.attributes.id) {
-          throw new Error('Cannot delete model without ID');
-        }
+        // Check if it's ID-based delete
+        if (op.ModelClass && op.id) {
+          // Delete by ID
+          const collectionRef = op.ModelClass.getCollectionRef();
+          const docRef = doc(collectionRef, op.id);
+          batch.delete(docRef);
+        } else {
+          // Delete by model instance
+          const model = op.model;
+          const collectionRef = (model.constructor as any).getCollectionRef();
 
-        const docRef = doc(collectionRef, model.attributes.id);
-        batch.delete(docRef);
-        model.exists = false;
+          if (!model.attributes.id) {
+            throw new Error('Cannot delete model without ID');
+          }
+
+          const docRef = doc(collectionRef, model.attributes.id);
+          batch.delete(docRef);
+          model.exists = false;
+        }
       }
     }
 
