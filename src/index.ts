@@ -46,6 +46,19 @@ export type { Unsubscribe } from 'firebase/firestore';
 export type { OrmConfig } from './core/ModelFactory';
 
 // ============================================
+// FIELD VALUE UTILITIES
+// ============================================
+export {
+  increment,
+  arrayUnion,
+  arrayRemove,
+  deleteField,
+  serverTimestamp,
+} from './utils/fieldValues';
+
+export type { FieldValue } from './utils/fieldValues';
+
+// ============================================
 // ERROR EXPORTS
 // ============================================
 export { ModelNotFoundError } from './errors/ModelNotFoundError';

@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [0.1.15] - 2025-11-25
+
+### Added
+
+- **Firestore Field Value Utilities**: Atomic field operations support
+  - `increment(n)` - Atomically increment/decrement numeric fields
+  - `arrayUnion(...elements)` - Add elements to arrays (no duplicates)
+  - `arrayRemove(...elements)` - Remove elements from arrays
+  - `deleteField()` - Delete a field from a document
+  - `serverTimestamp()` - Set field to server timestamp
+  - All utilities work with `Model.update()`, `query.update()`, and subcollections
+  - Example: `await User.update('id', { credits: increment(10), tags: arrayUnion('premium') })`
+  - Enables atomic operations without reading documents first
+  - Prevents race conditions in concurrent updates
+
+### Documentation
+
+- Added `docs/10-field-values.md` with comprehensive field value utilities guide
+- Added `examples/field-values.ts` with real-world examples
+- Documented all field value functions with use cases and best practices
+
 ## [0.1.14] - 2025-11-25
 
 ### Added

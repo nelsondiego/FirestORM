@@ -324,6 +324,47 @@ await Gym.transaction(async (ctx) => {
 // ✅ Either everything succeeds or nothing changes - true atomicity!
 ```
 
+### Field Value Utilities (NEW!)
+
+```typescript
+import {
+  increment,
+  arrayUnion,
+  arrayRemove,
+  deleteField,
+  serverTimestamp,
+} from 'ndfirestorm';
+
+// Atomic increment/decrement
+await User.update('user123', {
+  credits: increment(50), // Add 50 credits
+  loginCount: increment(1), // Increment by 1
+});
+
+// Array operations (no duplicates)
+await User.update('user123', {
+  tags: arrayUnion('premium', 'verified'), // Add tags
+  oldTags: arrayRemove('trial'), // Remove tag
+});
+
+// Server timestamp
+await User.update('user123', {
+  lastLoginAt: serverTimestamp(),
+});
+
+// Delete field
+await User.update('user123', {
+  temporaryToken: deleteField(),
+});
+
+// Combine operations
+await User.update('user123', {
+  credits: increment(100),
+  tags: arrayUnion('vip'),
+  lastLoginAt: serverTimestamp(),
+});
+```
+
 ### Custom IDs
 
 ```typescript
