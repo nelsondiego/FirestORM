@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [0.1.13] - 2025-11-25
+
+### Added
+
+- **Subcollection CRUD Operations**: Complete CRUD support for subcollections
+  - `query.create(data, customId?)` - Create document in subcollection
+  - `query.update(id, data)` - Update document in subcollection by ID
+  - `query.destroy(id)` - Delete document in subcollection by ID
+  - `query.find(id)` - Find document in subcollection by ID
+  - Works with both instance and static methods
+  - Example: `await gym.subcollection('equipments').create({ name: 'Treadmill', quantity: 5 })`
+  - Example: `await Gym.subcollection('gym123', 'equipments').update('eq1', { quantity: 10 })`
+  - Supports custom IDs for predictable document references
+  - Automatically adds timestamps (createdAt, updatedAt)
+
+### Documentation
+
+- Updated `docs/09-subcollections.md` with complete CRUD examples
+- Added `examples/subcollection-crud.ts` with comprehensive subcollection operations
+- Documented all new methods with usage examples
+
 ## [0.1.12] - 2025-11-25
 
 ### Fixed

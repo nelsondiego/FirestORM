@@ -11,6 +11,10 @@ import {
   doc,
   onSnapshot,
   writeBatch,
+  addDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
   QueryConstraint,
   DocumentSnapshot,
   Unsubscribe,
@@ -381,6 +385,93 @@ export class QueryBuilder<M extends Model> {
         callback([]);
       }
     );
+  }
+
+  /**
+   * Create a new document in the collection/subcollection
+   * @param data - Data for the new document
+   * @param customId - Optional custom ID for the document
+   * @returns Promise with the created document data
+   * @example
+   * // Create equipment in subcollection
+   * const gym = await Gym.load('gym123');
+   * const equipment = await gym.subcollection('equipments').create({
+   *   name: 'Treadmill',
+   *   quantity: 5,
+   *   status: 'active'
+   * });
+   *
+   * // Create with custom ID
+   * const feature = await gym.subcollection('features').create({
+   *   icon: 'wifi',
+   *   title: 'WiFi Gratis'
+   * }, 'wifi');
+   */
+  async create(data: Partial<any>, customId?: string): Promise<ModelData<M>> {
+    const collectionRef = this.getCollectionRef();
+
+    // Prepare data with timestamps
+    const dataToSave: any = { ...data };
+    delete dataToSave.id;
+    dataToSave.createdAt = dataToSave.createdAt || new Date();
+    dataToSave.updatedAt = new Date();
+
+    let docId: string;
+
+    if (customId) {
+      // Use custom ID
+      const docRef = doc(collectionRef, customId);
+      await setDoc(docRef, dataToSave);
+      docId = customId;
+    } else {
+      // Auto-generate ID
+      const docRef = await addDoc(collectionRef, dataToSave);
+      docId = docRef.id;
+    }
+
+    // Return the created document
+    return {
+      id: docId,
+      ...dataToSave,
+    } as ModelData<M>;
+  }
+
+  /**
+   * Update a document in the collection/subcollection by ID
+   * @param id - Document ID to update
+   * @param data - Partial data to update
+   * @example
+   * // Update equipment in subcollection
+   * const gym = await Gym.load('gym123');
+   * await gym.subcollection('equipments').update('equipment123', {
+   *   quantity: 10,
+   *   status: 'maintenance'
+   * });
+   */
+  async update(id: string, data: Partial<any>): Promise<void> {
+    const collectionRef = this.getCollectionRef();
+    const docRef = doc(collectionRef, id);
+
+    // Prepare update data with timestamp
+    const updateData: any = { ...data };
+    delete updateData.id;
+    updateData.updatedAt = new Date();
+
+    await updateDoc(docRef, updateData);
+  }
+
+  /**
+   * Delete a document in the collection/subcollection by ID
+   * @param id - Document ID to delete
+   * @example
+   * // Delete equipment in subcollection
+   * const gym = await Gym.load('gym123');
+   * await gym.subcollection('equipments').destroy('equipment123');
+   */
+  async destroy(id: string): Promise<void> {
+    const collectionRef = this.getCollectionRef();
+    const docRef = doc(collectionRef, id);
+    await deleteDoc(docRef);
   }
 
   /**

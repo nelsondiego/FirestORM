@@ -129,6 +129,79 @@ function GymEquipment({ gymId }: { gymId: string }) {
 }
 ```
 
+## ✏️ CRUD Operations on Subcollections
+
+### Create Documents
+
+```typescript
+// Create with auto-generated ID
+const equipment = await gym.subcollection('equipments').create({
+  name: 'Treadmill Pro 3000',
+  quantity: 5,
+  status: 'active',
+});
+
+console.log(equipment.id); // Auto-generated ID
+
+// Create with custom ID
+const feature = await gym.subcollection('features').create(
+  {
+    icon: 'wifi',
+    title: 'WiFi Gratis',
+  },
+  'wifi' // Custom ID
+);
+
+// Static method (without loading gym)
+const equipment2 = await Gym.subcollection('gym123', 'equipments').create({
+  name: 'Dumbbell Set',
+  quantity: 20,
+  status: 'active',
+});
+```
+
+### Update Documents
+
+```typescript
+// Update by ID
+await gym.subcollection('equipments').update('equipment123', {
+  quantity: 10,
+  status: 'maintenance',
+});
+
+// Static method (without loading gym)
+await Gym.subcollection('gym123', 'equipments').update('equipment123', {
+  quantity: 15,
+});
+```
+
+### Find Document by ID
+
+```typescript
+// Find specific document
+const equipment = await gym.subcollection('equipments').find('equipment123');
+
+if (equipment) {
+  console.log(equipment.name);
+  console.log(equipment.quantity);
+}
+
+// Static method (without loading gym)
+const equipment2 = await Gym.subcollection('gym123', 'equipments').find(
+  'equipment123'
+);
+```
+
+### Delete Single Document
+
+```typescript
+// Delete by ID
+await gym.subcollection('equipments').destroy('equipment123');
+
+// Static method (without loading gym)
+await Gym.subcollection('gym123', 'equipments').destroy('equipment123');
+```
+
 ## 🗑️ Deleting Subcollections
 
 ### Delete All Documents (Batch)

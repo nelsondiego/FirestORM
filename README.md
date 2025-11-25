@@ -248,7 +248,41 @@ await User.batch(async (ctx) => {
 });
 ```
 
-### Atomic Subcollection Deletion (NEW!)
+### Subcollections - Complete CRUD (NEW!)
+
+```typescript
+const gym = await Gym.load('gym123');
+
+// CREATE - Add documents to subcollection
+const equipment = await gym.subcollection('equipments').create({
+  name: 'Treadmill',
+  quantity: 5,
+  status: 'active',
+});
+
+// READ - Query subcollections
+const equipments = await gym.subcollection('equipments').get();
+const activeEquipments = await gym
+  .subcollection('equipments')
+  .where('status', '==', 'active')
+  .get();
+
+// FIND - Get specific document
+const found = await gym.subcollection('equipments').find('equipment123');
+
+// UPDATE - Modify document
+await gym.subcollection('equipments').update('equipment123', {
+  quantity: 10,
+});
+
+// DELETE - Remove document
+await gym.subcollection('equipments').destroy('equipment123');
+
+// DELETE ALL - Remove all documents
+await gym.subcollection('equipments').deleteAll();
+```
+
+### Atomic Subcollection Deletion
 
 ```typescript
 // Delete document with all subcollections atomically
