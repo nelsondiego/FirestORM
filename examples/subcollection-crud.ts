@@ -1,3 +1,15 @@
+/**
+ * Subcollection CRUD Operations Example
+ *
+ * This example demonstrates complete CRUD operations on subcollections:
+ * - CREATE: Add documents to subcollections with custom IDs
+ * - READ: Find and query subcollection documents
+ * - UPDATE: Modify subcollection documents by ID
+ * - DELETE: Remove individual or all subcollection documents
+ *
+ * All operations work with both static and instance methods.
+ */
+
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { initializeOrm, Model } from '../src';

@@ -1,3 +1,16 @@
+/**
+ * Real-time Subscriptions and Transactions Example
+ *
+ * This example demonstrates:
+ * - Real-time subscriptions for single documents and queries
+ * - Atomic transactions for consistent multi-document updates
+ * - Batch operations for efficient bulk writes
+ * - Custom document IDs for Firebase Auth sync
+ * - React and Vue integration patterns
+ *
+ * Perfect for building real-time applications with consistent data updates.
+ */
+
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { initializeOrm, Model } from '../src';

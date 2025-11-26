@@ -1,3 +1,15 @@
+/**
+ * Typed Subcollections Example
+ *
+ * This example demonstrates type-safe subcollection operations:
+ * - Define subcollection models with their own interfaces
+ * - Access subcollections with full TypeScript type inference
+ * - Get autocomplete and IntelliSense for all subcollection properties
+ * - Type-safe CRUD operations on nested collections
+ *
+ * Provides the same type safety for subcollections as you get with top-level collections.
+ */
+
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { initializeOrm, Model } from '../src';

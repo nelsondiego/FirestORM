@@ -1,3 +1,17 @@
+/**
+ * Field Value Utilities Example
+ *
+ * This example demonstrates atomic field operations in Firestore:
+ * - increment/decrement: Atomic numeric operations (prevents race conditions)
+ * - arrayUnion: Add elements to arrays without duplicates
+ * - arrayRemove: Remove elements from arrays
+ * - deleteField: Remove fields from documents
+ * - serverTimestamp: Set fields to server timestamp
+ *
+ * These operations are atomic and don't require reading the document first,
+ * making them perfect for concurrent updates like credits, likes, or tags.
+ */
+
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import {

@@ -1,3 +1,16 @@
+/**
+ * Batch Operations by ID Example
+ *
+ * This example demonstrates cost-optimized batch operations:
+ * - Update documents by ID without loading them first (saves read operations)
+ * - Delete documents by ID in batch (50% cost reduction)
+ * - Mixed batch operations (create, update, delete)
+ * - Transaction operations by ID
+ * - Bulk updates with proper batching (500 docs per batch)
+ *
+ * Key benefit: Reduces Firestore operations by 50% when updating/deleting multiple documents.
+ */
+
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { initializeOrm, Model } from '../src';

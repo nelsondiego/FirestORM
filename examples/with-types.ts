@@ -1,3 +1,15 @@
+/**
+ * Type Utilities Example
+ *
+ * This example demonstrates NDFirestORM's type utility helpers:
+ * - ModelData<M>: Extract the data type from a model
+ * - InferModelType<T>: Infer type from model class
+ * - CreateModelData<M>: Type for creating (without id, timestamps)
+ * - UpdateModelData<M>: Type for updating (partial, without id)
+ *
+ * Use these utilities to maintain type safety across your application layers.
+ */
+
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import {

@@ -106,13 +106,15 @@ async function example2_CascadeDeleteWithRelatedData() {
           console.log('Deleting related data...');
 
           // Delete all gym staff
-          const staff = await GymStaff.where('gymId', '==', gymId).get();
+          const staff = await GymStaff.where('gymId', '==', gym.id!).get();
           console.log(`Found ${staff.length} staff members to delete`);
 
           for (const s of staff) {
-            const staffModel = await GymStaff.load(s.id);
-            if (staffModel) {
-              await ctx.delete(staffModel);
+            if (s.id) {
+              const staffModel = await GymStaff.load(s.id);
+              if (staffModel) {
+                await ctx.delete(staffModel);
+              }
             }
           }
 
@@ -120,17 +122,19 @@ async function example2_CascadeDeleteWithRelatedData() {
           const users = await User.where(
             'myGyms',
             'array-contains',
-            gymId
+            gym.id!
           ).get();
           console.log(`Found ${users.length} users to update`);
 
           for (const u of users) {
-            const user = await User.load(u.id);
-            if (user) {
-              const currentGyms = user.get('myGyms') || [];
-              await ctx.update(user, {
-                myGyms: currentGyms.filter((id) => id !== gymId),
-              });
+            if (u.id) {
+              const user = await User.load(u.id);
+              if (user) {
+                const currentGyms = user.get('myGyms') || [];
+                await ctx.update(user, {
+                  myGyms: currentGyms.filter((id) => id !== gym.id!),
+                });
+              }
             }
           }
         },
@@ -211,13 +215,15 @@ async function example4_ConditionalCascadeDelete() {
         subcollections: ['equipments', 'features'],
         onBeforeDelete: async () => {
           // Notify staff
-          const staff = await GymStaff.where('gymId', '==', gymId).get();
+          const staff = await GymStaff.where('gymId', '==', gym.id!).get();
           console.log(`Notifying ${staff.length} staff members...`);
 
           // Delete staff records
           for (const s of staff) {
-            const staffModel = await GymStaff.load(s.id);
-            if (staffModel) await ctx.delete(staffModel);
+            if (s.id) {
+              const staffModel = await GymStaff.load(s.id);
+              if (staffModel) await ctx.delete(staffModel);
+            }
           }
         },
       });
@@ -259,21 +265,25 @@ async function example5_LargeDatasetDeletion() {
       if (!gym) throw new Error('Gym not found');
 
       // Delete staff
-      const staff = await GymStaff.where('gymId', '==', gymId).get();
+      const staff = await GymStaff.where('gymId', '==', gym.id!).get();
       for (const s of staff) {
-        const staffModel = await GymStaff.load(s.id);
-        if (staffModel) await ctx.delete(staffModel);
+        if (s.id) {
+          const staffModel = await GymStaff.load(s.id);
+          if (staffModel) await ctx.delete(staffModel);
+        }
       }
 
       // Update users
-      const users = await User.where('myGyms', 'array-contains', gymId).get();
+      const users = await User.where('myGyms', 'array-contains', gym.id!).get();
       for (const u of users) {
-        const user = await User.load(u.id);
-        if (user) {
-          const currentGyms = user.get('myGyms') || [];
-          await ctx.update(user, {
-            myGyms: currentGyms.filter((id) => id !== gymId),
-          });
+        if (u.id) {
+          const user = await User.load(u.id);
+          if (user) {
+            const currentGyms = user.get('myGyms') || [];
+            await ctx.update(user, {
+              myGyms: currentGyms.filter((id) => id !== gym.id!),
+            });
+          }
         }
       }
 
@@ -306,16 +316,20 @@ async function example6_ErrorHandlingAndRollback() {
         subcollections: ['equipments', 'members'],
         onBeforeDelete: async () => {
           // Simulate an error during deletion
-          const staff = await GymStaff.where('gymId', '==', gymId).get();
+          const staff = await GymStaff.where('gymId', '==', gym.id!).get();
 
           for (const s of staff) {
-            const staffModel = await GymStaff.load(s.id);
-            if (staffModel) {
-              // Check if staff has pending tasks
-              if ((staffModel as any).get('hasPendingTasks')) {
-                throw new Error('Cannot delete gym - staff has pending tasks');
+            if (s.id) {
+              const staffModel = await GymStaff.load(s.id);
+              if (staffModel) {
+                // Check if staff has pending tasks
+                if ((staffModel as any).get('hasPendingTasks')) {
+                  throw new Error(
+                    'Cannot delete gym - staff has pending tasks'
+                  );
+                }
+                await ctx.delete(staffModel);
               }
-              await ctx.delete(staffModel);
             }
           }
         },

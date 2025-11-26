@@ -1,3 +1,16 @@
+/**
+ * Subcollections Example
+ *
+ * This example demonstrates working with nested collections in Firestore:
+ * - Accessing subcollections from parent documents
+ * - Querying subcollection data with filters
+ * - Real-time subscriptions on subcollections
+ * - Batch delete operations on subcollections
+ * - Static and instance-based subcollection access
+ *
+ * Use subcollections for hierarchical data like gym equipment, order items, or user posts.
+ */
+
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { initializeOrm, Model } from '../src';

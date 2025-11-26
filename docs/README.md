@@ -71,6 +71,14 @@ Complete documentation for NDFirestORM - An Eloquent-style ORM for Firebase Fire
    - Batch delete operations
    - Complete deletion examples
 
+10. [**Field Value Utilities**](./10-field-values.md)
+    - Atomic field operations
+    - Increment/decrement numbers
+    - Array operations (union, remove)
+    - Delete fields
+    - Server timestamps
+    - Preventing race conditions
+
 ## 🚀 Quick Start
 
 ```bash
@@ -109,6 +117,10 @@ Each guide builds on the previous one:
 4. **Manipulate data** → [CRUD Operations](./04-crud-operations.md)
 5. **Handle large datasets** → [Pagination](./05-pagination.md)
 6. **Master TypeScript** → [Type Utilities](./06-type-utilities.md)
+7. **Real-time & Transactions** → [Real-time, Transactions & Batch](./07-realtime-transactions.md)
+8. **Best Practices** → [Best Practices](./08-best-practices.md)
+9. **Nested Collections** → [Subcollections](./09-subcollections.md)
+10. **Atomic Operations** → [Field Value Utilities](./10-field-values.md)
 
 ## 🎯 Key Features
 
@@ -117,6 +129,10 @@ Each guide builds on the previous one:
 - **Type Safe** - Full TypeScript support with type utilities
 - **Query Builder** - Fluent, chainable API
 - **3 Pagination Types** - Standard, simple, and cursor-based
+- **Real-time Subscriptions** - Live updates with `listen()`
+- **Transactions & Batch** - Atomic operations and bulk writes
+- **Subcollections** - Full support for nested collections
+- **Field Value Utilities** - Atomic increment, array operations, and more
 - **Zero Overhead** - No unnecessary class instantiation
 
 ## 💡 Quick Examples
@@ -158,6 +174,21 @@ await user?.delete();
 const result = await User.paginate({ perPage: 20, page: 1 });
 console.log(result.data); // Users
 console.log(result.meta); // Pagination info
+```
+
+### Atomic Operations
+
+```typescript
+import { increment, arrayUnion, arrayRemove } from 'ndfirestorm';
+
+// Increment credits atomically
+await User.update('id', { credits: increment(10) });
+
+// Add tags without duplicates
+await User.update('id', { tags: arrayUnion('premium', 'verified') });
+
+// Remove tags
+await User.update('id', { tags: arrayRemove('trial') });
 ```
 
 ## 🔗 External Resources

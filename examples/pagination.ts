@@ -1,3 +1,14 @@
+/**
+ * Pagination Example
+ *
+ * This example demonstrates the three pagination strategies available:
+ * 1. Standard Pagination - With total count and page numbers (best for traditional pagination)
+ * 2. Simple Pagination - Cursor-based without total count (more efficient)
+ * 3. Cursor Pagination - Bidirectional with before/after cursors (best for infinite scroll)
+ *
+ * Choose the right strategy based on your UI needs and performance requirements.
+ */
+
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { initializeOrm, Model, type ModelData } from '../src';

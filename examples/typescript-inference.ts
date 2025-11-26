@@ -1,3 +1,15 @@
+/**
+ * TypeScript Type Inference Example
+ *
+ * This example demonstrates NDFirestORM's automatic type inference:
+ * - No need for explicit type annotations
+ * - Full IntelliSense and autocomplete support
+ * - Type-safe queries, updates, and deletes
+ * - Compile-time error checking
+ *
+ * Shows how TypeScript correctly infers types for all operations without manual annotations.
+ */
+
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { initializeOrm, Model } from '../src';

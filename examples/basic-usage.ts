@@ -1,3 +1,15 @@
+/**
+ * Basic Usage Example
+ *
+ * This example demonstrates the fundamental CRUD operations with NDFirestORM:
+ * - Creating documents
+ * - Reading with queries and pagination
+ * - Updating documents (both by ID and with model instances)
+ * - Deleting documents
+ *
+ * Perfect for getting started with the ORM.
+ */
+
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { initializeOrm, Model, type ModelData } from '../src';

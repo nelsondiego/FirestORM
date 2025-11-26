@@ -5,6 +5,47 @@
 [![npm version](https://img.shields.io/npm/v/ndfirestorm.svg)](https://www.npmjs.com/package/ndfirestorm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+**NDFirestORM** is a modern, type-safe ORM for Firebase Firestore that brings the elegance of Laravel's Eloquent to the TypeScript/JavaScript ecosystem. Write clean, intuitive database queries without touching Firestore's API directly.
+
+## Why NDFirestORM?
+
+Stop writing verbose Firestore code. Start writing elegant, type-safe queries:
+
+```typescript
+// ❌ Without NDFirestORM (verbose Firestore code)
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  getFirestore,
+} from 'firebase/firestore';
+
+const firestore = getFirestore();
+const usersRef = collection(firestore, 'users');
+const q = query(
+  usersRef,
+  where('status', '==', 'active'),
+  where('age', '>=', 18)
+);
+const snapshot = await getDocs(q);
+const users = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+// ✅ With NDFirestORM (clean and elegant)
+const users = await User.where('status', '==', 'active')
+  .where('age', '>=', 18)
+  .get();
+```
+
+**Key Benefits:**
+
+- 🎯 **Zero Firestore Code** - Never write `collection()`, `doc()`, or `getDocs()` again
+- 📘 **100% Type Safe** - Full TypeScript support with intelligent autocomplete
+- ⚡ **Performance First** - JSON-first approach, no unnecessary overhead
+- 🔄 **Real-time Ready** - Built-in support for live subscriptions
+- 🗂️ **Subcollections Made Easy** - Full CRUD support for nested collections
+- 💰 **Cost Optimized** - Built-in patterns to reduce Firestore operations
+
 ## Features
 
 ✨ **Eloquent-style API** - Familiar syntax for Laravel developers  
@@ -31,6 +72,8 @@ npm install ndfirestorm firebase
 ```
 
 ## Quick Start
+
+Get up and running in 3 simple steps:
 
 ```typescript
 import { initializeApp } from 'firebase/app';
@@ -69,6 +112,23 @@ const user = await User.create({
 // ✅ Results are fully typed
 const users: UserData[] = await User.where('age', '>=', 18).get();
 ```
+
+That's it! No more Firestore boilerplate. Just clean, type-safe queries.
+
+## Documentation
+
+📚 **[Complete Documentation](./docs/README.md)** - Comprehensive guides and examples
+
+**Quick Links:**
+
+- [Getting Started](./docs/01-getting-started.md) - Setup and first model
+- [Defining Models](./docs/02-defining-models.md) - Model structure and types
+- [Queries](./docs/03-queries.md) - Query builder and filters
+- [CRUD Operations](./docs/04-crud-operations.md) - Create, read, update, delete
+- [Pagination](./docs/05-pagination.md) - Three pagination strategies
+- [Real-time & Transactions](./docs/07-realtime-transactions.md) - Live updates and atomic operations
+- [Subcollections](./docs/09-subcollections.md) - Nested collections support
+- [Field Value Utilities](./docs/10-field-values.md) - Atomic operations
 
 ## Core Concepts
 
@@ -126,6 +186,8 @@ type CreateUserInput = CreateModelData<User>; // Without id, timestamps
 
 ### Query Methods
 
+Build queries with a fluent, chainable interface:
+
 ```typescript
 // Basic queries
 const users = await User.all();
@@ -143,6 +205,8 @@ const activeUsers = await User.where('status', '==', 'active')
 ```
 
 ### CRUD Operations
+
+Create, read, update, and delete documents with simple methods:
 
 ```typescript
 // Create
@@ -173,6 +237,8 @@ await User.where('status', '==', 'inactive').deleteAll();
 
 ### Pagination
 
+Three pagination strategies for different use cases:
+
 ```typescript
 // Standard pagination (with total count)
 const result = await User.where('status', '==', 'active').paginate({
@@ -201,6 +267,8 @@ const result = await User.cursorPaginate({
 
 ### Real-time Subscriptions
 
+Listen to live updates with automatic JSON conversion:
+
 ```typescript
 // Listen to a single document (receives JSON)
 const unsubscribe = User.listen('user-id', (user) => {
@@ -222,6 +290,8 @@ unsubscribe();
 
 ### Transactions
 
+Execute multiple operations atomically - all succeed or all fail:
+
 ```typescript
 // Atomic operations - NO Firestore code needed!
 await User.transaction(async (ctx) => {
@@ -237,6 +307,8 @@ await User.transaction(async (ctx) => {
 
 ### Batch Operations
 
+Perform bulk writes efficiently (up to 500 operations):
+
 ```typescript
 // Bulk writes (up to 500 operations) - NO Firestore code needed!
 await User.batch(async (ctx) => {
@@ -248,7 +320,9 @@ await User.batch(async (ctx) => {
 });
 ```
 
-### Subcollections - Complete CRUD with Type Safety (NEW!)
+### Subcollections
+
+Full CRUD support for nested collections with type safety:
 
 ```typescript
 // Define subcollection model
@@ -299,7 +373,9 @@ await gym.subcollection(Equipment).deleteAll();
 await gym.subcollection('equipments').get();
 ```
 
-### Atomic Subcollection Deletion
+### Atomic Cascade Delete
+
+Delete documents with all subcollections in one atomic transaction:
 
 ```typescript
 // Delete document with all subcollections atomically
@@ -324,7 +400,9 @@ await Gym.transaction(async (ctx) => {
 // ✅ Either everything succeeds or nothing changes - true atomicity!
 ```
 
-### Field Value Utilities (NEW!)
+### Field Value Utilities
+
+Atomic field operations without reading documents first:
 
 ```typescript
 import {
@@ -367,6 +445,8 @@ await User.update('user123', {
 
 ### Custom IDs
 
+Create documents with custom IDs (perfect for Firebase Auth sync):
+
 ```typescript
 // Create with custom ID (perfect for Firebase Auth sync)
 const user = await User.create(
@@ -402,9 +482,11 @@ type CreateUserInput = CreateModelData<User>;
 type UpdateUserInput = UpdateModelData<User>;
 ```
 
-## Examples
+## Real-World Examples
 
 ### React Hook
+
+**Fetch and display user data with loading state**
 
 ```typescript
 function useUser(userId: string) {
@@ -420,32 +502,231 @@ function useUser(userId: string) {
 
   return { user, loading };
 }
+
+// Usage in component
+function UserProfile({ userId }: { userId: string }) {
+  const { user, loading } = useUser(userId);
+
+  if (loading) return <div>Loading...</div>;
+  if (!user) return <div>User not found</div>;
+
+  return <div>{user.name}</div>;
+}
+```
+
+### Real-time React Hook
+
+**Live updates with automatic cleanup**
+
+```typescript
+function useRealtimeUser(userId: string) {
+  const [user, setUser] = useState<UserData | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = User.listen(userId, (data) => {
+      setUser(data);
+    });
+
+    return () => unsubscribe(); // Cleanup on unmount
+  }, [userId]);
+
+  return user;
+}
 ```
 
 ### API Route (Next.js)
 
+**Return JSON directly from queries**
+
 ```typescript
+// app/api/users/route.ts
 export async function GET(request: NextRequest) {
   const users = await User.where('status', '==', 'active').get();
   return NextResponse.json(users); // Already JSON!
 }
+
+// app/api/users/[id]/route.ts
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const user = await User.find(params.id);
+
+  if (!user) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  }
+
+  return NextResponse.json(user);
+}
+
+// app/api/users/[id]/route.ts
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const data = await request.json();
+  await User.update(params.id, data);
+
+  return NextResponse.json({ success: true });
+}
+```
+
+### Vue Composable
+
+**Reusable composition function**
+
+```typescript
+// composables/useUser.ts
+export function useUser(userId: Ref<string>) {
+  const user = ref<UserData | null>(null);
+  const loading = ref(true);
+
+  watchEffect((onCleanup) => {
+    loading.value = true;
+
+    const unsubscribe = User.listen(userId.value, (data) => {
+      user.value = data;
+      loading.value = false;
+    });
+
+    onCleanup(() => unsubscribe());
+  });
+
+  return { user, loading };
+}
+
+// Usage in component
+const userId = ref('user123');
+const { user, loading } = useUser(userId);
 ```
 
 ### Pinia Store
 
+**State management with type safety**
+
 ```typescript
+// stores/user.ts
 export const useUserStore = defineStore('user', {
   state: () => ({
     users: [] as UserData[],
+    currentUser: null as UserData | null,
+    loading: false,
   }),
 
   actions: {
     async loadUsers() {
+      this.loading = true;
       this.users = await User.all();
+      this.loading = false;
+    },
+
+    async loadActiveUsers() {
+      this.loading = true;
+      this.users = await User.where('status', '==', 'active').get();
+      this.loading = false;
+    },
+
+    async updateUser(id: string, data: Partial<UserData>) {
+      await User.update(id, data);
+      await this.loadUsers(); // Refresh list
+    },
+
+    listenToUser(userId: string) {
+      return User.listen(userId, (user) => {
+        this.currentUser = user;
+      });
     },
   },
 });
 ```
+
+### Express.js API
+
+**RESTful API endpoints**
+
+```typescript
+// routes/users.ts
+import express from 'express';
+import { User } from '../models/User';
+
+const router = express.Router();
+
+// GET /users
+router.get('/', async (req, res) => {
+  const users = await User.all();
+  res.json(users);
+});
+
+// GET /users/:id
+router.get('/:id', async (req, res) => {
+  const user = await User.find(req.params.id);
+
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  res.json(user);
+});
+
+// POST /users
+router.post('/', async (req, res) => {
+  const user = await User.create(req.body);
+  res.status(201).json(user.toJSON());
+});
+
+// PATCH /users/:id
+router.patch('/:id', async (req, res) => {
+  await User.update(req.params.id, req.body);
+  const user = await User.find(req.params.id);
+  res.json(user);
+});
+
+// DELETE /users/:id
+router.delete('/:id', async (req, res) => {
+  await User.destroy(req.params.id);
+  res.status(204).send();
+});
+
+export default router;
+```
+
+### Firebase Auth Integration
+
+**Sync user documents with Firebase Auth**
+
+```typescript
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+
+const auth = getAuth();
+
+onAuthStateChanged(auth, async (firebaseUser) => {
+  if (firebaseUser) {
+    // Create or update user document with Auth UID
+    const existingUser = await User.find(firebaseUser.uid);
+
+    if (!existingUser) {
+      // Create new user with Auth UID as document ID
+      await User.create(
+        {
+          name: firebaseUser.displayName || 'Anonymous',
+          email: firebaseUser.email || '',
+          photoURL: firebaseUser.photoURL || '',
+          emailVerified: firebaseUser.emailVerified,
+        },
+        firebaseUser.uid // Use Auth UID as document ID
+      );
+    } else {
+      // Update existing user
+      await User.update(firebaseUser.uid, {
+        emailVerified: firebaseUser.emailVerified,
+        photoURL: firebaseUser.photoURL || '',
+      });
+    }
+  }
+});
+```
+
+📚 **[More Examples](./examples/README.md)** - See the `examples/` directory for complete, runnable examples
 
 ## Comparison with Other ORMs
 
@@ -457,6 +738,102 @@ export const useUserStore = defineStore('user', {
 | Pagination     | ✅ 3 types       | ⚠️ Basic      | ⚠️ Basic      |
 | Type Utilities | ✅ Full helpers  | ⚠️ Basic      | ⚠️ Basic      |
 
+## What Makes NDFirestORM Different?
+
+### 1. JSON First, ORM When Needed
+
+Most ORMs force you to work with class instances. NDFirestORM returns plain JSON by default (faster, API-ready), but gives you model instances when you need them:
+
+```typescript
+// Reading? Get JSON (fast, API-ready)
+const users = await User.all(); // UserData[]
+
+// Updating? Get model instance (with helper methods)
+const user = await User.load('id');
+await user?.update({ name: 'New Name' });
+```
+
+### 2. ID Always Included
+
+No more manually adding document IDs to your data:
+
+```typescript
+// ❌ Other ORMs
+const user = { ...doc.data(), id: doc.id };
+
+// ✅ NDFirestORM
+const user = await User.find('id'); // { id: 'id', name: '...', ... }
+```
+
+### 3. Cost Optimization Built-in
+
+Reduce Firestore operations with smart patterns:
+
+```typescript
+// Update without reading first (1 operation instead of 2)
+await User.update('id', { name: 'Jane' });
+
+// Batch operations by ID (saves 50% of operations)
+await User.batch(async (ctx) => {
+  ctx.update(User, 'user1', { status: 'active' });
+  ctx.update(User, 'user2', { status: 'active' });
+});
+```
+
+### 4. Real-time Made Simple
+
+```typescript
+// Live updates with one line
+User.listen('user-id', (user) => {
+  console.log('User updated:', user); // Already JSON!
+});
+```
+
+## Performance
+
+NDFirestORM is designed for performance:
+
+- **Zero overhead** - No unnecessary class instantiation
+- **JSON first** - Returns plain objects (faster than class instances)
+- **Smart caching** - Reuses collection references
+- **Batch operations** - Efficient bulk writes
+- **Cost optimized** - Built-in patterns to reduce Firestore operations
+
+## TypeScript Support
+
+Full type safety with intelligent autocomplete:
+
+```typescript
+// ✅ Fully typed results
+const users = await User.where('age', '>=', 18).get(); // UserData[]
+
+// ✅ Type-safe updates
+await User.update('id', {
+  name: 'Jane', // ✅ Valid
+  invalidField: 'value', // ❌ TypeScript error
+});
+
+// ✅ Type utilities
+type CreateUserInput = CreateModelData<User>; // Without id, timestamps
+type UpdateUserInput = UpdateModelData<User>; // Partial, without id
+```
+
+## Community & Support
+
+- 📖 [Documentation](./docs/README.md)
+- 🐛 [Issue Tracker](https://github.com/nelsondiego/FirestORM/issues)
+- 💬 [Discussions](https://github.com/nelsondiego/FirestORM/discussions)
+- 📦 [NPM Package](https://www.npmjs.com/package/ndfirestorm)
+
+## Roadmap
+
+- [ ] Relationships (hasMany, belongsTo, etc.)
+- [ ] Model events and hooks
+- [ ] Query caching
+- [ ] Soft deletes support
+- [ ] Migration tools
+- [ ] CLI for model generation
+
 ## License
 
 MIT © Diego Nelson
@@ -464,3 +841,7 @@ MIT © Diego Nelson
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Star History
+
+If you find NDFirestORM useful, please consider giving it a ⭐ on GitHub!

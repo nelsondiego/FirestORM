@@ -2,6 +2,61 @@
 
 ## [Unreleased]
 
+## [0.1.16] - 2025-11-26
+
+### Documentation
+
+- **Complete Documentation Overhaul**: Comprehensive documentation improvements across all files
+  - Added descriptive headers to all API Reference sections in README
+  - Created `examples/README.md` with organized index of all examples
+  - Added JSDoc comments to all example files explaining their purpose
+  - Updated `docs/README.md` to include Field Value Utilities (point 10)
+  - Improved README introduction with "Why NDFirestORM?" section
+  - Added "What Makes NDFirestORM Different?" section with 4 key differentiators
+  - Expanded "Real-World Examples" section with React, Vue, Next.js, Express, and Firebase Auth patterns
+  - Added performance and TypeScript support sections
+  - Included community resources and roadmap
+
+- **Example Files**: All examples now have clear descriptions
+  - `basic-usage.ts` - Fundamental CRUD operations
+  - `typescript-inference.ts` - Automatic type inference
+  - `with-types.ts` - Type utility helpers
+  - `pagination.ts` - Three pagination strategies
+  - `realtime-transactions.ts` - Real-time and atomic operations
+  - `subcollections-example.ts` - Working with nested collections
+  - `subcollection-crud.ts` - Complete CRUD on subcollections
+  - `typed-subcollections.ts` - Type-safe subcollection operations
+  - `batch-by-id.ts` - Cost-optimized batch operations
+  - `atomic-cascade-delete.ts` - Atomic deletion with subcollections
+  - `field-values.ts` - Atomic field operations
+
+- **API Reference**: Each section now has a brief, clear description
+  - Query Methods - "Build queries with a fluent, chainable interface"
+  - CRUD Operations - "Create, read, update, and delete documents with simple methods"
+  - Pagination - "Three pagination strategies for different use cases"
+  - Real-time Subscriptions - "Listen to live updates with automatic JSON conversion"
+  - Transactions - "Execute multiple operations atomically"
+  - Batch Operations - "Perform bulk writes efficiently"
+  - Subcollections - "Full CRUD support for nested collections with type safety"
+  - Atomic Cascade Delete - "Delete documents with all subcollections in one atomic transaction"
+  - Field Value Utilities - "Atomic field operations without reading documents first"
+  - Custom IDs - "Create documents with custom IDs (perfect for Firebase Auth sync)"
+
+### Fixed
+
+- **TypeScript Errors**: Fixed type safety issues in `atomic-cascade-delete.ts`
+  - Added proper null checks for document IDs before using them
+  - Prevents `string | undefined` type errors
+  - All examples now compile without TypeScript errors
+
+### Improved
+
+- **Developer Experience**: Better onboarding and discoverability
+  - Clear navigation between documentation sections
+  - Organized examples by category (Getting Started, Type Safety, Queries, etc.)
+  - Quick links to relevant documentation from examples
+  - Improved README structure with better visual hierarchy
+
 ## [0.1.15] - 2025-11-25
 
 ### Added
