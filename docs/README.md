@@ -79,6 +79,14 @@ Complete documentation for NDFirestORM - An Eloquent-style ORM for Firebase Fire
     - Server timestamps
     - Preventing race conditions
 
+11. [**Numeric ID Support**](./11-numeric-ids.md)
+    - Using numeric IDs
+    - Find, load, create with numbers
+    - Batch and transaction support
+    - Subcollections with numeric IDs
+    - Mixed string/numeric IDs
+    - Best practices
+
 ## 🚀 Quick Start
 
 ```bash
@@ -121,6 +129,7 @@ Each guide builds on the previous one:
 8. **Best Practices** → [Best Practices](./08-best-practices.md)
 9. **Nested Collections** → [Subcollections](./09-subcollections.md)
 10. **Atomic Operations** → [Field Value Utilities](./10-field-values.md)
+11. **Numeric IDs** → [Numeric ID Support](./11-numeric-ids.md)
 
 ## 🎯 Key Features
 
@@ -133,6 +142,7 @@ Each guide builds on the previous one:
 - **Transactions & Batch** - Atomic operations and bulk writes
 - **Subcollections** - Full support for nested collections
 - **Field Value Utilities** - Atomic increment, array operations, and more
+- **Numeric ID Support** - Work with both string and numeric document IDs
 - **Zero Overhead** - No unnecessary class instantiation
 
 ## 💡 Quick Examples

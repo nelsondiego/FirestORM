@@ -54,13 +54,14 @@ const users = await User.where('status', '==', 'active')
 🎯 **Query Builder** - Fluent, chainable query interface  
 📄 **JSON First** - Returns plain objects by default (faster, API-ready)  
 🆔 **ID Auto-included** - Document ID always in the object  
+🔢 **Numeric IDs** - Use numbers in code (auto-converted to strings for Firestore) (NEW!)  
 📊 **Pagination** - Three types: standard, simple, and cursor-based  
 🔴 **Real-time** - Built-in support for live subscriptions  
 🔄 **Transactions** - Atomic operations with full type safety  
 📦 **Batch Operations** - Efficient bulk writes (up to 500 ops)  
 🗂️ **Subcollections** - Full support for nested collections  
 🗑️ **Batch Delete** - Delete all documents matching a query  
-💥 **Atomic Cascade Delete** - Delete documents with subcollections atomically (NEW!)  
+💥 **Atomic Cascade Delete** - Delete documents with subcollections atomically  
 🆔 **Custom IDs** - Support for custom document IDs  
 ⚡ **Performance** - Zero overhead, no unnecessary class instantiation  
 🧪 **Well Tested** - Comprehensive test coverage
@@ -461,6 +462,39 @@ const user = await User.create({
   email: 'jane@example.com',
 });
 ```
+
+### Numeric IDs
+
+Work with numeric IDs in your code (automatically converted to strings for Firestore):
+
+```typescript
+// Define model with numeric ID
+interface CityData extends ModelAttributes {
+  id: number; // Use numbers in code
+  name: string;
+  province: string;
+}
+
+class City extends Model<CityData> {
+  static collectionName = 'locations_cities';
+}
+
+// Works with all operations (numbers converted to strings internally)
+const city = await City.find(12345); // → Firestore receives "12345"
+await City.update(12345, { name: 'New Name' });
+await City.destroy(54321);
+
+// Batch and transactions
+await City.batch(async (ctx) => {
+  ctx.create(City, { name: 'Jakarta' }, 11111);
+  ctx.update(City, 12345, { population: 10000000 });
+});
+
+// Subcollections
+const districts = await City.subcollection(12345, 'districts').get();
+```
+
+**Note:** Firestore requires string IDs. FirestORM converts numbers to strings automatically.
 
 ## Type Utilities
 

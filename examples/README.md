@@ -17,6 +17,19 @@ This directory contains comprehensive examples demonstrating all features of NDF
 
 Perfect for getting started with the ORM.
 
+#### [numeric-ids.ts](./numeric-ids.ts)
+
+**Working with numeric document IDs**
+
+- Find, load, create with numeric IDs
+- Update and delete by numeric ID
+- Batch and transaction operations with numbers
+- Subcollections with numeric parent IDs
+- Mixed string/numeric ID support
+- Preserving numeric fields in data
+
+Perfect for SQL migrations or working with external APIs that use numeric identifiers.
+
 ---
 
 ### Type Safety
@@ -179,6 +192,7 @@ For detailed documentation, see the [docs](../docs/README.md) directory:
 - [Best Practices](../docs/08-best-practices.md)
 - [Subcollections](../docs/09-subcollections.md)
 - [Field Value Utilities](../docs/10-field-values.md)
+- [Numeric ID Support](../docs/11-numeric-ids.md)
 
 ## 💡 Tips
 

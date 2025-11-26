@@ -67,11 +67,12 @@ export type ModelConstructor<M extends Model> = {
   new (data?: any): M;
   collectionName: string;
   getCollectionRef(): CollectionReference;
+  normalizeId(id: string | number): string;
   query(): any;
-  find(id: string): Promise<any>;
-  load(id: string): Promise<any>;
+  find(id: string | number): Promise<any>;
+  load(id: string | number): Promise<any>;
   listen(
-    id: string,
+    id: string | number,
     callback: (data: ModelData<M> | null) => void
   ): Unsubscribe;
 };
@@ -84,7 +85,7 @@ export class TransactionContext {
     type: 'create' | 'update' | 'delete' | 'deleteSubcollection';
     model?: any;
     data?: any;
-    customId?: string;
+    customId?: string | number;
     parentModel?: any;
     subcollectionName?: string;
     subcollectionDocs?: any[];
@@ -96,10 +97,10 @@ export class TransactionContext {
   async create<M extends Model>(
     ModelClass: ModelConstructor<M>,
     data: Partial<any>,
-    customId?: string
+    customId?: string | number
   ): Promise<InstanceType<ModelConstructor<M>>> {
     const instance = new ModelClass(data as any);
-    if (customId) {
+    if (customId !== undefined) {
       (instance as any).attributes.id = customId;
     }
 
@@ -124,16 +125,19 @@ export class TransactionContext {
    */
   async update<M extends Model>(
     ModelClass: ModelConstructor<M>,
-    id: string,
+    id: string | number,
     data: Partial<any>
   ): Promise<void>;
   async update<M extends Model>(
     modelOrClass: M | ModelConstructor<M>,
-    dataOrId: Partial<any> | string,
+    dataOrId: Partial<any> | string | number,
     maybeData?: Partial<any>
   ): Promise<M | void> {
     // Check if it's the ID-based signature
-    if (typeof dataOrId === 'string' && maybeData !== undefined) {
+    if (
+      (typeof dataOrId === 'string' || typeof dataOrId === 'number') &&
+      maybeData !== undefined
+    ) {
       // Update by ID: update(ModelClass, id, data)
       const ModelClass = modelOrClass as ModelConstructor<M>;
       const id = dataOrId;
@@ -175,11 +179,11 @@ export class TransactionContext {
    */
   async delete<M extends Model>(
     ModelClass: ModelConstructor<M>,
-    id: string
+    id: string | number
   ): Promise<void>;
   async delete<M extends Model>(
     modelOrClass: M | ModelConstructor<M>,
-    maybeId?: string
+    maybeId?: string | number
   ): Promise<void> {
     // Check if it's the ID-based signature
     if (maybeId !== undefined) {
@@ -298,9 +302,9 @@ export class BatchContext {
     type: 'create' | 'update' | 'delete';
     model: any;
     data?: any;
-    customId?: string;
+    customId?: string | number;
     ModelClass?: any;
-    id?: string;
+    id?: string | number;
   }> = [];
 
   /**
@@ -309,10 +313,10 @@ export class BatchContext {
   create<M extends Model>(
     ModelClass: ModelConstructor<M>,
     data: Partial<any>,
-    customId?: string
+    customId?: string | number
   ): InstanceType<ModelConstructor<M>> {
     const instance = new ModelClass(data as any);
-    if (customId) {
+    if (customId !== undefined) {
       (instance as any).attributes.id = customId;
     }
 
@@ -337,16 +341,19 @@ export class BatchContext {
    */
   update<M extends Model>(
     ModelClass: ModelConstructor<M>,
-    id: string,
+    id: string | number,
     data: Partial<any>
   ): void;
   update<M extends Model>(
     modelOrClass: M | ModelConstructor<M>,
-    dataOrId: Partial<any> | string,
+    dataOrId: Partial<any> | string | number,
     maybeData?: Partial<any>
   ): M | void {
     // Check if it's the ID-based signature
-    if (typeof dataOrId === 'string' && maybeData !== undefined) {
+    if (
+      (typeof dataOrId === 'string' || typeof dataOrId === 'number') &&
+      maybeData !== undefined
+    ) {
       // Update by ID: update(ModelClass, id, data)
       const ModelClass = modelOrClass as ModelConstructor<M>;
       const id = dataOrId;
@@ -386,10 +393,13 @@ export class BatchContext {
    * Delete a document in the batch
    * @overload Delete by ID
    */
-  delete<M extends Model>(ModelClass: ModelConstructor<M>, id: string): void;
+  delete<M extends Model>(
+    ModelClass: ModelConstructor<M>,
+    id: string | number
+  ): void;
   delete<M extends Model>(
     modelOrClass: M | ModelConstructor<M>,
-    maybeId?: string
+    maybeId?: string | number
   ): void {
     // Check if it's the ID-based signature
     if (maybeId !== undefined) {
@@ -460,6 +470,15 @@ export abstract class Model<T extends ModelAttributes = any> {
   // ============================================
 
   /**
+   * Normalize ID to string (Firestore only supports string IDs)
+   * @param id - ID as string or number
+   * @returns ID as string
+   */
+  static normalizeId(id: string | number): string {
+    return typeof id === 'number' ? id.toString() : id;
+  }
+
+  /**
    * Get collection reference
    */
   static getCollectionRef(): CollectionReference {
@@ -506,7 +525,7 @@ export abstract class Model<T extends ModelAttributes = any> {
    */
   static subcollection<M extends Model>(
     this: ModelConstructor<M>,
-    parentId: string,
+    parentId: string | number,
     subcollectionName: string
   ): QueryBuilder<InstanceType<ModelConstructor<M>>>;
   /**
@@ -520,18 +539,23 @@ export abstract class Model<T extends ModelAttributes = any> {
    */
   static subcollection<M extends Model, SubM extends Model>(
     this: ModelConstructor<M>,
-    parentId: string,
+    parentId: string | number,
     SubcollectionModel: ModelConstructor<SubM>
   ): QueryBuilder<InstanceType<ModelConstructor<SubM>>>;
   static subcollection<M extends Model, SubM extends Model>(
     this: ModelConstructor<M>,
-    parentId: string,
+    parentId: string | number,
     subcollectionNameOrModel: string | ModelConstructor<SubM>
   ):
     | QueryBuilder<InstanceType<ModelConstructor<M>>>
     | QueryBuilder<InstanceType<ModelConstructor<SubM>>> {
     const firestore = ModelFactory.getFirestore();
-    const parentDocRef = doc(firestore, this.collectionName, parentId);
+    const normalizedParentId = this.normalizeId(parentId);
+    const parentDocRef = doc(
+      firestore,
+      this.collectionName,
+      normalizedParentId
+    );
 
     let subcollectionName: string;
     let SubcollectionModel: ModelConstructor<any>;
@@ -557,9 +581,10 @@ export abstract class Model<T extends ModelAttributes = any> {
    */
   static async find<M extends Model>(
     this: ModelConstructor<M>,
-    id: string
+    id: string | number
   ): Promise<ModelData<InstanceType<ModelConstructor<M>>> | null> {
-    return this.query().find(id);
+    const normalizedId = this.normalizeId(id);
+    return this.query().find(normalizedId);
   }
 
   /**
@@ -567,7 +592,7 @@ export abstract class Model<T extends ModelAttributes = any> {
    */
   static async load<M extends Model>(
     this: ModelConstructor<M>,
-    id: string
+    id: string | number
   ): Promise<InstanceType<ModelConstructor<M>> | null> {
     const data = await this.find(id);
     if (!data) return null;
@@ -583,7 +608,7 @@ export abstract class Model<T extends ModelAttributes = any> {
    */
   static async findOrFail<M extends Model>(
     this: ModelConstructor<M>,
-    id: string
+    id: string | number
   ): Promise<ModelData<InstanceType<ModelConstructor<M>>>> {
     const model = await this.find(id);
     if (!model) {
@@ -609,10 +634,10 @@ export abstract class Model<T extends ModelAttributes = any> {
   static async create<M extends Model>(
     this: ModelConstructor<M>,
     data: Partial<any>,
-    customId?: string
+    customId?: string | number
   ): Promise<InstanceType<ModelConstructor<M>>> {
     const instance = new this(data as any);
-    if (customId) {
+    if (customId !== undefined) {
       (instance as any).attributes.id = customId;
     }
     await instance.save();
@@ -625,14 +650,16 @@ export abstract class Model<T extends ModelAttributes = any> {
    * @param data - Partial data to update
    * @example
    * await User.update('user123', { name: 'New Name', age: 30 });
+   * await City.update(12345, { name: 'New City Name' });
    */
   static async update<M extends Model>(
     this: ModelConstructor<M>,
-    id: string,
+    id: string | number,
     data: Partial<any>
   ): Promise<void> {
     const collectionRef = this.getCollectionRef();
-    const docRef = doc(collectionRef, id);
+    const normalizedId = this.normalizeId(id);
+    const docRef = doc(collectionRef, normalizedId);
 
     // Prepare update data with timestamp
     const updateData: any = { ...data };
@@ -647,7 +674,7 @@ export abstract class Model<T extends ModelAttributes = any> {
    */
   static async destroy<M extends Model>(
     this: ModelConstructor<M>,
-    id: string
+    id: string | number
   ): Promise<void> {
     const docData = await this.find(id);
     if (docData) {
@@ -665,13 +692,14 @@ export abstract class Model<T extends ModelAttributes = any> {
    */
   static listen<M extends Model>(
     this: ModelConstructor<M>,
-    id: string,
+    id: string | number,
     callback: (
       data: ModelData<InstanceType<ModelConstructor<M>>> | null
     ) => void
   ): Unsubscribe {
     const collectionRef = this.getCollectionRef();
-    const docRef = doc(collectionRef, id);
+    const normalizedId = this.normalizeId(id);
+    const docRef = doc(collectionRef, normalizedId);
 
     return onSnapshot(
       docRef,
@@ -730,10 +758,10 @@ export abstract class Model<T extends ModelAttributes = any> {
           const parentCollectionRef = (
             parentModel.constructor as any
           ).getCollectionRef();
-          const parentDocRef = doc(
-            parentCollectionRef,
-            parentModel.attributes.id
-          );
+          const normalizedParentId = (
+            parentModel.constructor as any
+          ).normalizeId(parentModel.attributes.id);
+          const parentDocRef = doc(parentCollectionRef, normalizedParentId);
 
           for (const docData of subcollectionDocs) {
             const subcollectionDocRef = doc(
@@ -747,8 +775,11 @@ export abstract class Model<T extends ModelAttributes = any> {
           const collectionRef = (model.constructor as any).getCollectionRef();
           const dataToSave = model.prepareDataForSave();
 
-          if (model.attributes.id) {
-            const docRef = doc(collectionRef, model.attributes.id);
+          if (model.attributes.id !== undefined) {
+            const normalizedId = (model.constructor as any).normalizeId(
+              model.attributes.id
+            );
+            const docRef = doc(collectionRef, normalizedId);
             transaction.set(docRef, dataToSave);
           } else {
             // Generate ID for transaction
@@ -761,11 +792,12 @@ export abstract class Model<T extends ModelAttributes = any> {
           model.original = { ...model.attributes };
         } else if (op.type === 'update') {
           // Check if it's ID-based update
-          if (op.parentModel && op.customId) {
+          if (op.parentModel && op.customId !== undefined) {
             // Update by ID
             const ModelClass = op.parentModel as ModelConstructor<any>;
             const collectionRef = ModelClass.getCollectionRef();
-            const docRef = doc(collectionRef, op.customId);
+            const normalizedId = ModelClass.normalizeId(op.customId);
+            const docRef = doc(collectionRef, normalizedId);
 
             // Prepare update data with timestamp
             const updateData: any = { ...op.data };
@@ -778,33 +810,40 @@ export abstract class Model<T extends ModelAttributes = any> {
             const model = op.model;
             const collectionRef = (model.constructor as any).getCollectionRef();
 
-            if (!model.attributes.id) {
+            if (model.attributes.id === undefined) {
               throw new Error('Cannot update model without ID');
             }
 
-            const docRef = doc(collectionRef, model.attributes.id);
+            const normalizedId = (model.constructor as any).normalizeId(
+              model.attributes.id
+            );
+            const docRef = doc(collectionRef, normalizedId);
             const dataToUpdate = model.prepareDataForSave(true);
             transaction.update(docRef, dataToUpdate);
             model.original = { ...model.attributes };
           }
         } else if (op.type === 'delete') {
           // Check if it's ID-based delete
-          if (op.parentModel && op.customId) {
+          if (op.parentModel && op.customId !== undefined) {
             // Delete by ID
             const ModelClass = op.parentModel as ModelConstructor<any>;
             const collectionRef = ModelClass.getCollectionRef();
-            const docRef = doc(collectionRef, op.customId);
+            const normalizedId = ModelClass.normalizeId(op.customId);
+            const docRef = doc(collectionRef, normalizedId);
             transaction.delete(docRef);
           } else {
             // Delete by model instance
             const model = op.model;
             const collectionRef = (model.constructor as any).getCollectionRef();
 
-            if (!model.attributes.id) {
+            if (model.attributes.id === undefined) {
               throw new Error('Cannot delete model without ID');
             }
 
-            const docRef = doc(collectionRef, model.attributes.id);
+            const normalizedId = (model.constructor as any).normalizeId(
+              model.attributes.id
+            );
+            const docRef = doc(collectionRef, normalizedId);
             transaction.delete(docRef);
             model.exists = false;
           }
@@ -851,8 +890,11 @@ export abstract class Model<T extends ModelAttributes = any> {
         const collectionRef = (model.constructor as any).getCollectionRef();
         const dataToSave = model.prepareDataForSave();
 
-        if (model.attributes.id) {
-          const docRef = doc(collectionRef, model.attributes.id);
+        if (model.attributes.id !== undefined) {
+          const normalizedId = (model.constructor as any).normalizeId(
+            model.attributes.id
+          );
+          const docRef = doc(collectionRef, normalizedId);
           batch.set(docRef, dataToSave);
         } else {
           // Generate ID for batch
@@ -865,10 +907,11 @@ export abstract class Model<T extends ModelAttributes = any> {
         model.original = { ...model.attributes };
       } else if (op.type === 'update') {
         // Check if it's ID-based update
-        if (op.ModelClass && op.id) {
+        if (op.ModelClass && op.id !== undefined) {
           // Update by ID
           const collectionRef = op.ModelClass.getCollectionRef();
-          const docRef = doc(collectionRef, op.id);
+          const normalizedId = op.ModelClass.normalizeId(op.id);
+          const docRef = doc(collectionRef, normalizedId);
 
           // Prepare update data with timestamp
           const updateData: any = { ...op.data };
@@ -881,32 +924,39 @@ export abstract class Model<T extends ModelAttributes = any> {
           const model = op.model;
           const collectionRef = (model.constructor as any).getCollectionRef();
 
-          if (!model.attributes.id) {
+          if (model.attributes.id === undefined) {
             throw new Error('Cannot update model without ID');
           }
 
-          const docRef = doc(collectionRef, model.attributes.id);
+          const normalizedId = (model.constructor as any).normalizeId(
+            model.attributes.id
+          );
+          const docRef = doc(collectionRef, normalizedId);
           const dataToUpdate = model.prepareDataForSave(true);
           batch.update(docRef, dataToUpdate);
           model.original = { ...model.attributes };
         }
       } else if (op.type === 'delete') {
         // Check if it's ID-based delete
-        if (op.ModelClass && op.id) {
+        if (op.ModelClass && op.id !== undefined) {
           // Delete by ID
           const collectionRef = op.ModelClass.getCollectionRef();
-          const docRef = doc(collectionRef, op.id);
+          const normalizedId = op.ModelClass.normalizeId(op.id);
+          const docRef = doc(collectionRef, normalizedId);
           batch.delete(docRef);
         } else {
           // Delete by model instance
           const model = op.model;
           const collectionRef = (model.constructor as any).getCollectionRef();
 
-          if (!model.attributes.id) {
+          if (model.attributes.id === undefined) {
             throw new Error('Cannot delete model without ID');
           }
 
-          const docRef = doc(collectionRef, model.attributes.id);
+          const normalizedId = (model.constructor as any).normalizeId(
+            model.attributes.id
+          );
+          const docRef = doc(collectionRef, normalizedId);
           batch.delete(docRef);
           model.exists = false;
         }
@@ -960,7 +1010,7 @@ export abstract class Model<T extends ModelAttributes = any> {
    * Refresh model from database
    */
   async refresh(): Promise<this> {
-    if (!this.attributes.id) {
+    if (this.attributes.id === undefined) {
       throw new Error('Cannot refresh a model without an ID');
     }
 
@@ -996,7 +1046,7 @@ export abstract class Model<T extends ModelAttributes = any> {
   subcollection<SubM extends Model>(
     subcollectionNameOrModel: string | ModelConstructor<SubM>
   ): QueryBuilder<this> | QueryBuilder<InstanceType<ModelConstructor<SubM>>> {
-    if (!this.attributes.id) {
+    if (this.attributes.id === undefined) {
       throw new Error('Cannot access subcollection without document ID');
     }
 
@@ -1061,7 +1111,7 @@ export abstract class Model<T extends ModelAttributes = any> {
   /**
    * Get id (convenience method)
    */
-  get id(): string | undefined {
+  get id(): string | number | undefined {
     return this.attributes.id;
   }
 
@@ -1074,8 +1124,11 @@ export abstract class Model<T extends ModelAttributes = any> {
     const dataToSave = this.prepareDataForSave();
 
     // If ID is already set, use setDoc instead of addDoc
-    if (this.attributes.id) {
-      const docRef = doc(collectionRef, this.attributes.id);
+    if (this.attributes.id !== undefined) {
+      const normalizedId = (this.constructor as any).normalizeId(
+        this.attributes.id
+      );
+      const docRef = doc(collectionRef, normalizedId);
       await setDoc(docRef, dataToSave);
       this.original = { ...this.attributes };
       this.exists = true;
@@ -1088,12 +1141,15 @@ export abstract class Model<T extends ModelAttributes = any> {
   }
 
   protected async performUpdate(): Promise<void> {
-    if (!this.attributes.id) {
+    if (this.attributes.id === undefined) {
       throw new Error('Cannot update model without ID');
     }
 
     const collectionRef = (this.constructor as any).getCollectionRef();
-    const docRef = doc(collectionRef, this.attributes.id);
+    const normalizedId = (this.constructor as any).normalizeId(
+      this.attributes.id
+    );
+    const docRef = doc(collectionRef, normalizedId);
     const dataToUpdate = this.prepareDataForSave(true);
 
     await updateDoc(docRef, dataToUpdate);
@@ -1102,7 +1158,10 @@ export abstract class Model<T extends ModelAttributes = any> {
 
   protected async performDelete(): Promise<void> {
     const collectionRef = (this.constructor as any).getCollectionRef();
-    const docRef = doc(collectionRef, this.attributes.id!);
+    const normalizedId = (this.constructor as any).normalizeId(
+      this.attributes.id!
+    );
+    const docRef = doc(collectionRef, normalizedId);
 
     await deleteDoc(docRef);
     this.exists = false;

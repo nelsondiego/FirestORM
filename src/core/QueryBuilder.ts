@@ -176,9 +176,10 @@ export class QueryBuilder<M extends Model> {
   /**
    * Find by ID and return as plain JSON
    */
-  async find(id: string): Promise<ModelData<M> | null> {
+  async find(id: string | number): Promise<ModelData<M> | null> {
     const collectionRef = this.getCollectionRef();
-    const docRef = doc(collectionRef, id);
+    const normalizedId = typeof id === 'number' ? id.toString() : id;
+    const docRef = doc(collectionRef, normalizedId);
     const docSnap = await getDoc(docRef);
 
     if (!docSnap.exists()) {
@@ -407,7 +408,10 @@ export class QueryBuilder<M extends Model> {
    *   title: 'WiFi Gratis'
    * }, 'wifi');
    */
-  async create(data: Partial<any>, customId?: string): Promise<ModelData<M>> {
+  async create(
+    data: Partial<any>,
+    customId?: string | number
+  ): Promise<ModelData<M>> {
     const collectionRef = this.getCollectionRef();
 
     // Prepare data with timestamps
@@ -418,11 +422,13 @@ export class QueryBuilder<M extends Model> {
 
     let docId: string;
 
-    if (customId) {
-      // Use custom ID
-      const docRef = doc(collectionRef, customId);
+    if (customId !== undefined) {
+      // Use custom ID (normalize if numeric)
+      const normalizedId =
+        typeof customId === 'number' ? customId.toString() : customId;
+      const docRef = doc(collectionRef, normalizedId);
       await setDoc(docRef, dataToSave);
-      docId = customId;
+      docId = normalizedId;
     } else {
       // Auto-generate ID
       const docRef = await addDoc(collectionRef, dataToSave);
@@ -448,9 +454,10 @@ export class QueryBuilder<M extends Model> {
    *   status: 'maintenance'
    * });
    */
-  async update(id: string, data: Partial<any>): Promise<void> {
+  async update(id: string | number, data: Partial<any>): Promise<void> {
     const collectionRef = this.getCollectionRef();
-    const docRef = doc(collectionRef, id);
+    const normalizedId = typeof id === 'number' ? id.toString() : id;
+    const docRef = doc(collectionRef, normalizedId);
 
     // Prepare update data with timestamp
     const updateData: any = { ...data };
@@ -468,9 +475,10 @@ export class QueryBuilder<M extends Model> {
    * const gym = await Gym.load('gym123');
    * await gym.subcollection('equipments').destroy('equipment123');
    */
-  async destroy(id: string): Promise<void> {
+  async destroy(id: string | number): Promise<void> {
     const collectionRef = this.getCollectionRef();
-    const docRef = doc(collectionRef, id);
+    const normalizedId = typeof id === 'number' ? id.toString() : id;
+    const docRef = doc(collectionRef, normalizedId);
     await deleteDoc(docRef);
   }
 

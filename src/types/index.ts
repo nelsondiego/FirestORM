@@ -22,7 +22,7 @@ export type OrderDirection = 'asc' | 'desc';
  * Base attributes that all models have
  */
 export interface ModelAttributes {
-  id?: string;
+  id?: string | number;
   createdAt?: Date;
   updatedAt?: Date;
   deletedAt?: Date | null;

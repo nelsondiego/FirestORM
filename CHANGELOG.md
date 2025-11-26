@@ -2,6 +2,47 @@
 
 ## [Unreleased]
 
+## [0.1.17] - 2025-11-26
+
+### Added
+
+- **Numeric ID Support**: Convenience feature for working with numeric IDs in code
+  - `ModelAttributes.id` now accepts `string | number`
+  - All methods support numeric IDs: `find()`, `load()`, `create()`, `update()`, `destroy()`
+  - **Automatic conversion to strings** at Firestore boundary via `normalizeId()` helper
+  - **Important**: Firestore requires string IDs - numbers are converted to strings automatically
+  - Works with queries: `City.where('id', '==', 12345).get()` → Firestore receives `"12345"`
+  - Batch operations: `ctx.create(City, data, 12345)` → stored as `"12345"`
+  - Transaction support: `await City.transaction(async (ctx) => { ... })`
+  - Subcollections: `City.subcollection(12345, 'districts').get()`
+  - Real-time listeners: `City.listen(12345, callback)`
+  - Perfect for migrating from SQL databases or working with external APIs
+  - Example: `const city = await City.find(12345)` → internally uses `"12345"`
+  - Type-safe: Define `id: number` in your model interface for numeric-only IDs
+  - Preserves numeric fields in data: `cityId: number` remains a number
+
+### Documentation
+
+- Added comprehensive guide: `docs/11-numeric-ids.md`
+- Added examples: `examples/numeric-ids.ts` with 12 different use cases
+- Updated `docs/README.md` to include numeric ID documentation
+- Documented best practices for numeric IDs
+- Added migration guide from string to numeric IDs
+
+### Changed
+
+- `ModelAttributes.id` type changed from `string` to `string | number`
+- All ID parameters now accept `string | number` throughout the codebase
+- Internal `normalizeId()` method added to Model class for type conversion
+
+### Technical Details
+
+- ID normalization happens at Firestore boundary (transparent to application)
+- Firestore still stores IDs as strings internally
+- No breaking changes - existing string IDs continue to work
+- TypeScript enforces type safety based on model definition
+- Supports mixed string/numeric IDs in the same application
+
 ## [0.1.16] - 2025-11-26
 
 ### Documentation
